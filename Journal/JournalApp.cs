@@ -1,7 +1,6 @@
 using System.Security.Claims;
 using AspNet.Security.OAuth.Discord;
 using Journal.API;
-using Journal.Components;
 using Journal.Database;
 using Journal.Database.Models;
 using Journal.Settings;
@@ -11,7 +10,7 @@ using Realms;
 
 namespace Journal;
 
-public class App
+public class JournalApp
 {
     // List of changes:
     // 2 - Added `SleepStart` and `SleepEnd` so journal entries can be edited
@@ -20,21 +19,30 @@ public class App
     // 5 - Changed `Weather` to an enum
     public const ulong SCHEMA_VERSION = 5;
 
-    private static readonly RealmConfiguration realm_config = new($"{AppDomain.CurrentDomain.BaseDirectory}/database.realm")
-    {
-        SchemaVersion = SCHEMA_VERSION,
-        MigrationCallback = RealmAccess.Migrate
-    };
+    public static readonly string DATA_PATH = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data");
+
+    public static RealmConfiguration RealmConfig = null!;
 
     public static void Main(string[] args)
     {
+        Directory.CreateDirectory(DATA_PATH);
+
         SettingsManager.Load();
+
+        RealmConfig = new RealmConfiguration(Path.Combine(DATA_PATH, "database.realm"))
+        {
+            SchemaVersion = SCHEMA_VERSION,
+            MigrationCallback = RealmAccess.Migrate
+        };
+
+        Realm.Compact(RealmConfig);
+
 
         var builder = WebApplication.CreateBuilder(args);
 
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddCascadingAuthenticationState();
-        builder.Services.AddSingleton(realm_config);
+        builder.Services.AddSingleton(RealmConfig);
         builder.Services.AddAuthentication(options =>
             {
                 options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;

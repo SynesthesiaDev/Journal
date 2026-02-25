@@ -8,29 +8,30 @@ public static class SettingsManager
 {
     public static JournalSettings Config => fileLoaded ? currentConfig! : throw new InvalidOperationException("Config is not loaded yet!");
 
-    public const string PATH = "./settings.json";
-    private static JournalSettings defaultSettings = JournalSettings.DEFAULT;
+    public static readonly string CONFIG_PATH = Path.Combine(JournalApp.DATA_PATH, "settings.json");
+
+    private static readonly JournalSettings default_settings = JournalSettings.DEFAULT;
 
     private static bool fileLoaded;
     private static JournalSettings? currentConfig;
 
     public static void Load()
     {
-        if (!File.Exists(PATH))
+        if (!File.Exists(CONFIG_PATH))
         {
             Console.WriteLine("config does not exist");
-            File.Create(PATH).Close();
-            var encoded = JournalSettings.VERSIONED_CODEC.Encode(JsonTranscoder.INSTANCE, defaultSettings);
-            File.WriteAllText(PATH, JsonUtil.Prettified(encoded));
+            File.Create(CONFIG_PATH).Close();
+            var encoded = JournalSettings.VERSIONED_CODEC.Encode(JsonTranscoder.INSTANCE, default_settings);
+            File.WriteAllText(CONFIG_PATH, JsonUtil.Prettified(encoded));
 
             fileLoaded = true;
-            currentConfig = defaultSettings;
+            currentConfig = default_settings;
 
             Console.WriteLine("Journal settings not found, creating new one!");
             return;
         }
 
-        var json = File.ReadAllText(PATH);
+        var json = File.ReadAllText(CONFIG_PATH);
         try
         {
             var decoded = JournalSettings.VERSIONED_CODEC.Decode(JsonTranscoder.INSTANCE, JsonDocument.Parse(json).RootElement);
@@ -45,8 +46,8 @@ public static class SettingsManager
 
             if (JournalSettings.DidMigrate)
             {
-                var encoded = JournalSettings.VERSIONED_CODEC.Encode(JsonTranscoder.INSTANCE, defaultSettings);
-                File.WriteAllText(PATH, JsonUtil.Prettified(encoded));
+                var encoded = JournalSettings.VERSIONED_CODEC.Encode(JsonTranscoder.INSTANCE, default_settings);
+                File.WriteAllText(CONFIG_PATH, JsonUtil.Prettified(encoded));
                 Console.WriteLine("Journal settings re-saved because of schema migration!");
             }
         }
