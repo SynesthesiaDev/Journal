@@ -6,6 +6,7 @@ using Journal.Database.Models;
 using Journal.Settings;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using Realms;
 
 namespace Journal;
@@ -43,6 +44,8 @@ public class JournalApp
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddCascadingAuthenticationState();
         builder.Services.AddSingleton(RealmConfig);
+        builder.Services.AddDataProtection()
+            .PersistKeysToFileSystem(new DirectoryInfo("/app/data/keys/"));
         builder.Services.AddAuthentication(options =>
             {
                 options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
