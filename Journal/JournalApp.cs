@@ -63,6 +63,9 @@ public class JournalApp
                 options.Scope.Add("identify");
                 options.ClaimActions.MapJsonKey("urn:discord:id", "id");
 
+                options.CorrelationCookie.SameSite = SameSiteMode.Lax;
+                options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+
                 options.Events.OnCreatingTicket = async context =>
                 {
                     var data = await DiscordApi.GetData(context.AccessToken!);
