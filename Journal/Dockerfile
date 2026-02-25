@@ -30,5 +30,5 @@ COPY --from=publish /app/publish .
 EXPOSE 8080
 RUN mkdir -p /app/data && chown -R 1654:1654 /app/data
 ENV DOTNET_RUNNING_IN_CONTAINER=true
-USER 1654
+USER root
 ENTRYPOINT ["dotnet", "Journal.dll", "--urls", "http://0.0.0.0:8080"]
