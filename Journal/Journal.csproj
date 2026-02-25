@@ -1,19 +1,31 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
-    <PropertyGroup>
-        <TargetFramework>net8.0</TargetFramework>
-        <Nullable>enable</Nullable>
-        <ImplicitUsings>enable</ImplicitUsings>
-    </PropertyGroup>
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+<!--    <PublishTrimmed>true</PublishTrimmed>-->
+<!--    <TrimMode>link</TrimMode>-->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <GarbageCollectionAdaptationMode>0</GarbageCollectionAdaptationMode>
+    <RuntimeIdentifiers>linux-arm64;linux-musl-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
 
-    <ItemGroup>
-      <PackageReference Include="AspNet.Security.OAuth.Discord" Version="8.0.0" />
-      <PackageReference Include="BeerCss.Blazor" Version="0.1.1-preview1" />
-      <PackageReference Include="Discord.Net" Version="3.19.0-beta.1" />
-      <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-      <PackageReference Include="Realm" Version="20.1.0" />
-      <PackageReference Include="SynesthesiaDev.Codon.Codec" Version="2026.220.5" />
-      <PackageReference Include="SynesthesiaUtils" Version="1.2.0" />
-    </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\.dockerignore">
+      <Link>.dockerignore</Link>
+    </Content>
+  </ItemGroup>
+  
+  <ItemGroup>
+    <PackageReference Include="AspNet.Security.OAuth.Discord" Version="8.0.0"/>
+    <PackageReference Include="BeerCss.Blazor" Version="0.1.1-preview1"/>
+    <PackageReference Include="Discord.Net" Version="3.19.0-beta.1"/>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4"/>
+    <PackageReference Include="Realm" Version="20.1.0"/>
+    <PackageReference Include="SynesthesiaDev.Codon.Codec" Version="2026.220.5"/>
+    <PackageReference Include="SynesthesiaUtils" Version="1.2.0"/>
+  </ItemGroup>
 
 </Project>
