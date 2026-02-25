@@ -26,7 +26,6 @@ RUN dotnet publish "./Journal.csproj" \
     /p:PublishTrimmed=false
 
 FROM base AS final
-RUN apk add --no-cache libc6-compat libstdc++
 WORKDIR /app
 COPY --from=publish /app/publish .
 EXPOSE 8080
