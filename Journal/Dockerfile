@@ -1,5 +1,4 @@
 ﻿FROM mcr.microsoft.com/dotnet/aspnet:8.0-bookworm-slim AS base
-USER $APP_UID
 WORKDIR /app
 EXPOSE 8080
 ENV DOTNET_GCLatencyMode=0
@@ -31,4 +30,5 @@ COPY --from=publish /app/publish .
 EXPOSE 8080
 RUN mkdir -p /app/data && chown -R 1654:1654 /app/data
 ENV DOTNET_RUNNING_IN_CONTAINER=true
+USER 1654
 ENTRYPOINT ["dotnet", "Journal.dll", "--urls", "http://0.0.0.0:8080"]
