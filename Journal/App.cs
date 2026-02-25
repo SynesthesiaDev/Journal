@@ -11,7 +11,7 @@ using Realms;
 
 namespace Journal;
 
-public class Journal
+public class App
 {
     // List of changes:
     // 2 - Added `SleepStart` and `SleepEnd` so journal entries can be edited
@@ -117,7 +117,7 @@ public class Journal
         app.UseStaticFiles();
         app.UseAntiforgery();
 
-        app.MapRazorComponents<App>()
+        app.MapRazorComponents<Components.App>()
             .AddInteractiveServerRenderMode();
 
         app.Run();
