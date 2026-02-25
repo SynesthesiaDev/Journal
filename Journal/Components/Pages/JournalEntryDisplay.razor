@@ -13,7 +13,7 @@
 
     private JournalEntry? journalEntry = null;
     private RealmUser realmUser = null!;
-    private Realm realmAccess = null!;
+    private Realm realmAccess => Realm.GetInstance(realmConfig);
 
     private string? error = null;
 
@@ -22,7 +22,6 @@
         if (!firstRender) return;
         var authState = await authStateProvider.GetAuthenticationStateAsync();
 
-        realmAccess = await Realm.GetInstanceAsync(realmConfig);
         realmUser = RealmUtil.GetRealmUser(authState, realmAccess);
         if (!Guid.TryParse(Id, out var guid))
         {
