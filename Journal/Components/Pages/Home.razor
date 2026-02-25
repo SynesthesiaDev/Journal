@@ -1,0 +1,56 @@
+﻿@page "/"
+@using global::Journal.Database.Models
+@using global::Journal.Util
+@using Realms
+@inject RealmConfiguration realmConfig
+@inject AuthenticationStateProvider authStateProvider
+@rendermode InteractiveServer
+
+@code
+{
+    private RealmUser? realmUser;
+    private List<JournalEntry> entries = [];
+
+    private Realm realm => Realm.GetInstance(realmConfig);
+
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        var authState = await authStateProvider.GetAuthenticationStateAsync();
+        realmUser = RealmUtil.GetRealmUser(authState, realm);
+        updateListState();
+    }
+
+    private void updateListState()
+    {
+        entries = RealmUtil.GetJournalEntries(realmUser!.DiscordId, realm).Reversed().Take(7).ToList();
+        StateHasChanged();
+    }
+}
+
+<PageTitle>Home</PageTitle>
+<div class="height-3"></div>
+
+@if (realmUser == null)
+{
+    <progress value="100" max="100" class="indeterminate"></progress>
+}
+else
+{
+    <article class="border">
+        <div class="row">
+            <img class="circle large" src="@(realmUser.ProfileImageUrl)" alt="profile picture">
+            <div class="max">
+                <h5>Hey @(realmUser.DisplayName)!</h5>
+            </div>
+        </div>
+    </article>
+    <ul class="list border">
+        @foreach (var entry in entries)
+        {
+            <JournalEntryCard OnEntryDeleted="updateListState" Entry="entry"></JournalEntryCard>
+        }
+    </ul>
+}

@@ -1,0 +1,113 @@
+@page "/journal/entry/{Id}"
+@using global::Journal.Database.Models
+@using global::Journal.Util
+@using Realms
+@inject RealmConfiguration realmConfig
+@inject AuthenticationStateProvider authStateProvider
+@rendermode InteractiveServer
+
+@code {
+
+    [Parameter]
+    public string Id { get; set; } = string.Empty;
+
+    private JournalEntry? journalEntry = null;
+    private RealmUser realmUser = null!;
+    private Realm realmAccess = null!;
+
+    private string? error = null;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var authState = await authStateProvider.GetAuthenticationStateAsync();
+
+        realmAccess = await Realm.GetInstanceAsync(realmConfig);
+        realmUser = RealmUtil.GetRealmUser(authState, realmAccess);
+        if (!Guid.TryParse(Id, out var guid))
+        {
+            error = "Failed to parse entry Id";
+            return;
+        }
+
+        journalEntry = RealmUtil.GetJournalEntryOrNull(guid, realmUser.DiscordId, realmAccess);
+        if (journalEntry == null)
+        {
+            error = "Failed to get journal entry";
+        }
+
+        StateHasChanged();
+    }
+
+}
+
+<div class="height-3"></div>
+@if (journalEntry != null)
+{
+    <article class="border">
+        <h3 class="bold">@journalEntry!.Title</h3>
+        <hr class="medium">
+        <span style="display: inline-flex; align-items: center; gap: 8px;">
+            <img width="23px" src="@realmUser.ProfileImageUrl" alt="Profile Picture Url"/>
+            @realmUser.DisplayName - @journalEntry.Time.ToDateTime().ToProperlyFormatted(true)
+        </span>
+    </article>
+    <article class="border" style="white-space: pre-wrap;">
+        <p>@journalEntry!.Text</p>
+    </article>
+
+    <article class="border surface">
+        <div style="display: inline-flex; gap: 5px"><i>@Icons.BEDTIME</i> Slept for
+            <b>@journalEntry.MentalHealthTrackerEntry.HoursSlept hours</b>
+        </div>
+
+        <br/>
+        <div style="display: inline-flex; gap: 5px"><i>@Icons.SUNRISE</i> Was awake for
+            <b>@journalEntry.SunlightHours hours</b>
+            of sunlight
+        </div>
+
+        <br/>
+        <div style="display: inline-flex; gap: 5px"><i>@Icons.GetForWeatherType(journalEntry.Weather)</i> Weather was
+            <b>@journalEntry.Weather.GetDisplayName()</b>
+        </div>
+
+        <br/>
+
+        <RatingComponent
+            Icon="@Icons.MOOD_RATING"
+            Name="Mood Rating"
+            Rating="journalEntry.MentalHealthTrackerEntry.MoodRating">
+        </RatingComponent>
+
+        <RatingComponent
+            Icon="@Icons.PRODUCTIVITY_RATING"
+            Name="Productivity Rating"
+            Rating="journalEntry.MentalHealthTrackerEntry.ProductivityRating">
+        </RatingComponent>
+
+        <RatingComponent
+            Icon="@Icons.RATING"
+            Name="Overall day Rating"
+            Rating="journalEntry.MentalHealthTrackerEntry.OverallDayRating">
+        </RatingComponent>
+
+        <hr class="medium">
+        <nav class="wrap">
+            <button class="chip fill">@journalEntry.MentalHealthTrackerEntry.MotivationTag.GetDisplayName()</button>
+            <button class="chip fill">@journalEntry.MentalHealthTrackerEntry.StressTag.GetDisplayName()</button>
+            <button class="chip fill">@journalEntry.MentalHealthTrackerEntry.SocialTag.GetDisplayName()</button>
+
+            @foreach (var tag in journalEntry.MentalHealthTrackerEntry.UserDefinedTags)
+            {
+                <button class="chip">@tag.Title</button>
+            }
+        </nav>
+    </article>
+}
+else
+{
+    <progress value="100" max="100" class="indeterminate"></progress>
+}
+
+<div class="snackbar error @(error != null ? "active" : "")">@error</div>

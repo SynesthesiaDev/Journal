@@ -1,0 +1,15 @@
+@inherits LayoutComponentBase
+
+<NavBar></NavBar>
+
+<main class="responsive">
+    <AuthorizeView>
+        <Authorized>
+            @Body
+        </Authorized>
+        <NotAuthorized>
+            <NotLoggedIn></NotLoggedIn>
+        </NotAuthorized>
+    </AuthorizeView>
+</main>
+

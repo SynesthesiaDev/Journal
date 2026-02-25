@@ -1,0 +1,36 @@
+@using global::Journal.Database.Models
+@using global::Journal.Util
+@rendermode InteractiveServer
+
+@code {
+
+    [Parameter]
+    public UserDefinedTag Tag { get; set; }
+
+    [Parameter]
+    public List<UserDefinedTag> List { get; set; }
+
+
+    private void addOrRemoveTag()
+    {
+        var idList = List.ConvertAll(t => t.Id);
+
+        if (idList.Contains(Tag.Id))
+        {
+            List.RemoveAll(t => t.Id == Tag.Id);
+        }
+
+        else List.Add(Tag);
+
+        StateHasChanged();
+    }
+
+}
+
+<button class="chip @(List.ConvertAll(t => t.Id).Contains(Tag.Id) ? "fill" : "")" @onclick="addOrRemoveTag">
+    <span>@Tag.Title</span>
+    @if (List.ConvertAll(t => t.Id).Contains(Tag.Id))
+    {
+        <i>@Icons.CLOSE</i>
+    }
+</button>

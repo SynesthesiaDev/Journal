@@ -1,0 +1,34 @@
+@typeparam TEnum where TEnum : struct, Enum
+@using global::Journal.Util
+
+@code {
+    [Parameter] public TEnum Value { get; set; }
+    [Parameter] public EventCallback<TEnum> ValueChanged { get; set; }
+    [Parameter] public string GroupName { get; set; } = Guid.NewGuid().ToString();
+    [Parameter] public string ContainerName { get; set; } = "Select one or more";
+
+    private async Task handleChange(TEnum newValue)
+    {
+        Value = newValue;
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+}
+
+<fieldset>
+    <legend>@ContainerName</legend>
+    <nav class="vertical">
+
+        @foreach (var item in Extensions.GetValuesWithDisplayNames<TEnum>())
+        {
+            <label class="radio">
+                <input type="radio"
+                       name="@GroupName"
+                       value="@item.Value"
+                       checked="@(Value.Equals(item.Value))"
+                       @onchange="(() => handleChange(item.Value))">
+                <span> @item.Name </span>
+            </label>
+        }
+    </nav>
+</fieldset>

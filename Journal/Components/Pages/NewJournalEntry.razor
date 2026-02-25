@@ -1,0 +1,306 @@
+@using global::Journal.API
+@using global::Journal.Database.Models
+@using global::Journal.Settings
+@using global::Journal.Util
+@using Microsoft.AspNetCore.WebUtilities
+@using Realms
+@inject RealmConfiguration realmConfig
+@inject AuthenticationStateProvider authStateProvider
+@inject NavigationManager navigationManager
+@rendermode InteractiveServer
+@page "/journal/new"
+
+@code {
+
+    private MotivationTag motivationTag = MotivationTag.StayedInBed;
+    private SocialTag socialTag = SocialTag.NoSocialContact;
+    private StressTag stressTag = StressTag.NoStress;
+
+    private string title = DateTimeOffset.Now.ToProperlyFormatted();
+    private string text = string.Empty;
+
+    private RealmUser realmUser = null!;
+    private List<JournalEntry> entries = [];
+    private bool alreadyHasEntryForSelectedDay;
+    private DateTimeOffset selectedDate = DateTimeOffset.Now.Date;
+    private double sleepStartTonight = 3;
+    private double sleepEndThisMorning = 1;
+    private double moodRating = 1;
+    private double productivityRating = 1;
+    private double overallDayRating = 1;
+    private readonly List<UserDefinedTag> userDefinedTags = [];
+
+    private bool creating;
+
+    private Guid entryGuid = Guid.NewGuid();
+
+    private string? error;
+
+    private JournalEntry? editingEntry;
+
+    private bool isEditingExistingEntry => editingEntry != null;
+
+    private Realm realmAccess => Realm.GetInstance(realmConfig);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        var uri = navigationManager.ToAbsoluteUri(navigationManager.Uri);
+
+        var authState = await authStateProvider.GetAuthenticationStateAsync();
+        realmUser = RealmUtil.GetRealmUser(authState, realmAccess);
+        entries = RealmUtil.GetJournalEntries(authState, realmAccess);
+
+        updateDateState();
+
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("edit", out var editId))
+        {
+            var parsed = Guid.TryParse(editId!, out var guid);
+            if (!parsed) return;
+
+            if (entries.Any(e => e.Id == guid))
+            {
+                editingEntry = entries.First(e => e.Id == guid);
+                entryGuid = guid;
+
+                selectedDate = DateTimeOffset.FromUnixTimeMilliseconds(editingEntry.Time);
+                sleepStartTonight = editingEntry.MentalHealthTrackerEntry.SleepStart;
+                sleepEndThisMorning = editingEntry.MentalHealthTrackerEntry.SleepEnd;
+                moodRating = editingEntry.MentalHealthTrackerEntry.MoodRating;
+                productivityRating = editingEntry.MentalHealthTrackerEntry.ProductivityRating;
+                overallDayRating = editingEntry.MentalHealthTrackerEntry.OverallDayRating;
+                title = editingEntry.Title;
+                text = editingEntry.Text;
+                motivationTag = editingEntry.MentalHealthTrackerEntry.MotivationTag;
+                socialTag = editingEntry.MentalHealthTrackerEntry.SocialTag;
+                stressTag = editingEntry.MentalHealthTrackerEntry.StressTag;
+
+                userDefinedTags.Clear();
+                editingEntry.MentalHealthTrackerEntry.UserDefinedTags.DistinctBy(t => t.Id).ToList().ForEach(tag => userDefinedTags.Add(tag));
+
+                StateHasChanged();
+                updateDateState();
+            }
+        }
+
+        updateDateState();
+    }
+
+    private void handleDateChange(ChangeEventArgs e)
+    {
+        if (!DateTimeOffset.TryParse(e.Value?.ToString(), out var newDate)) return;
+        selectedDate = newDate.Date;
+        updateDateState();
+    }
+
+    private void updateDateState()
+    {
+        alreadyHasEntryForSelectedDay = entries.Any(s => s.Time.ToDateTime().Date == selectedDate.Date);
+        StateHasChanged();
+    }
+
+    private double calculateDuration()
+    {
+        return (sleepEndThisMorning - sleepStartTonight + 24) % 24;
+    }
+
+    private static string getFormattedTime(double value)
+    {
+        var hour = Math.Floor(value);
+        var minutes = value % 1 == 0 ? "00" : "30";
+        return $"{hour}:{minutes}";
+    }
+
+    private async Task createEntry()
+    {
+        if (alreadyHasEntryForSelectedDay && !isEditingExistingEntry)
+        {
+            error = "There is already a journal entry for this day";
+            return;
+        }
+
+        creating = true;
+        var now = DateTimeOffset.Now;
+        var utcDate = new DateTimeOffset(selectedDate.Year, selectedDate.Month, selectedDate.Day, now.Hour, now.Minute, 5, TimeSpan.Zero);
+        var timeMilliseconds = utcDate.ToUnixTimeMilliseconds();
+
+        var latitude = SettingsManager.Config.Latitude;
+        var longitude = SettingsManager.Config.Longitude;
+        var sunriseData = await SunriseSunsetApi.GetSunriseAndSunset(latitude, longitude, timeMilliseconds);
+
+        var weather = await VisualCrossingWeatherApi.GetWeatherData(latitude, longitude, timeMilliseconds, SettingsManager.Config.VisualCrossingWeatherApiKey);
+        var weatherIcon = weather?.Icon ?? "unknown";
+
+        if (isEditingExistingEntry)
+        {
+            var existingEntry = editingEntry!;
+
+            await realmAccess.WriteAsync(() =>
+            {
+                existingEntry.Time = timeMilliseconds;
+                existingEntry.Title = title;
+                existingEntry.Text = text;
+                existingEntry.Sunrise = sunriseData.Item1;
+                existingEntry.Sunset = sunriseData.Item2;
+                existingEntry.WeatherId = (int)TimeWeatherUtils.MapToWeatherType(weatherIcon);
+                existingEntry.MentalHealthTrackerEntry = new MentalHealthTrackerEntry
+                {
+                    MotivationTag = motivationTag,
+                    SocialTag = socialTag,
+                    StressTag = stressTag,
+                    HoursSlept = calculateDuration(),
+                    MoodRating = (int)moodRating,
+                    ProductivityRating = (int)productivityRating,
+                    OverallDayRating = (int)overallDayRating,
+                    SleepStart = sleepStartTonight,
+                    SleepEnd = sleepEndThisMorning,
+                };
+
+                userDefinedTags.ForEach(existingEntry.MentalHealthTrackerEntry.UserDefinedTags.Add);
+            });
+
+            await realmAccess.WriteAsync(() => realmAccess.Add(existingEntry));
+            navigationManager.NavigateTo(Routes.JournalEntry(existingEntry));
+        }
+        else
+        {
+            var entry = new JournalEntry
+            {
+                Id = entryGuid,
+                Time = timeMilliseconds,
+                OwnerDiscordId = realmUser.DiscordId,
+                Title = title,
+                Text = text,
+                Sunrise = sunriseData.Item1,
+                Sunset = sunriseData.Item2,
+                WeatherId = (int)TimeWeatherUtils.MapToWeatherType(weatherIcon),
+                MentalHealthTrackerEntry = new MentalHealthTrackerEntry
+                {
+                    MotivationTag = motivationTag,
+                    SocialTag = socialTag,
+                    StressTag = stressTag,
+                    HoursSlept = calculateDuration(),
+                    MoodRating = (int)moodRating,
+                    ProductivityRating = (int)productivityRating,
+                    OverallDayRating = (int)overallDayRating,
+                    SleepStart = sleepStartTonight,
+                    SleepEnd = sleepEndThisMorning,
+                }
+            };
+
+            userDefinedTags.ForEach(entry.MentalHealthTrackerEntry.UserDefinedTags.Add);
+            await realmAccess.WriteAsync(() => realmAccess.Add(entry));
+            navigationManager.NavigateTo(Routes.JournalEntry(entry));
+        }
+    }
+
+}
+
+<div class="@(creating ? "disabled" : "")">
+
+    <div class="height-3"></div>
+
+    <div class="field label border">
+        <textarea @bind="title" @bind:event="oninput"></textarea>
+        <label>Title</label>
+    </div>
+
+    <div class="field label border @(alreadyHasEntryForSelectedDay && !isEditingExistingEntry ? "invalid" : "")">
+        <input type="date" value="@selectedDate.ToString("yyyy-MM-dd")" @onchange="handleDateChange">
+        <label>Date</label>
+        @if (alreadyHasEntryForSelectedDay && !isEditingExistingEntry)
+        {
+            <output class="invalid">There is already a journal entry for this date</output>
+        }
+    </div>
+
+    <div class="field label border">
+        <textarea rows="10" @bind="text" @bind:event="oninput" style="white-space: pre-wrap;"></textarea>
+        <label>Text</label>
+    </div>
+
+    <EnumRadioContainer ContainerName="Motivation" TEnum="MotivationTag"
+                        @bind-Value="motivationTag"></EnumRadioContainer>
+    <EnumRadioContainer ContainerName="Social" TEnum="SocialTag" @bind-Value="socialTag"></EnumRadioContainer>
+    <EnumRadioContainer ContainerName="Stress" TEnum="StressTag" @bind-Value="stressTag"></EnumRadioContainer>
+
+    <fieldset>
+        <legend>User Tags</legend>
+        <UserTagsContainer SelectedList="userDefinedTags" AllTags="SettingsManager.Config.UserDefinedTags"/>
+    </fieldset>
+
+    <fieldset>
+        <legend>
+            Sleep: @getFormattedTime(sleepStartTonight) to @getFormattedTime(sleepEndThisMorning) (@calculateDuration() hrs)
+        </legend>
+        <div class="range-container">
+            <label class="slider">
+                <input type="range" min="0" max="24" step="0.5" @bind="sleepStartTonight" @bind:event="oninput">
+                <span></span>
+                <div class="tooltip"></div>
+            </label>
+            <label class="slider">
+                <input type="range" min="0" max="24" step="0.5" @bind="sleepEndThisMorning" @bind:event="oninput">
+                <span></span>
+                <div class="tooltip"></div>
+            </label>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Ratings</legend>
+
+
+        <legend>Mood Rating</legend>
+        <label class="slider">
+            <input type="range" min="0" max="10" step="1" @bind="moodRating" @bind:event="oninput">
+            <span></span>
+            <div class="tooltip"></div>
+        </label>
+
+        <br/>
+        <legend>Productivity Rating</legend>
+        <label class="slider">
+            <input type="range" min="0" max="10" step="1" @bind="productivityRating" @bind:event="oninput">
+            <span></span>
+            <div class="tooltip"></div>
+        </label>
+
+        <br/>
+        <legend>Overall Day Rating</legend>
+        <label class="slider">
+            <input type="range" min="0" max="10" step="1" @bind="overallDayRating" @bind:event="oninput">
+            <span></span>
+            <div class="tooltip"></div>
+        </label>
+    </fieldset>
+
+
+    @if (creating)
+    {
+        <br/>
+        <progress value="100" max="100" class="indeterminate"></progress>
+        <br/>
+    }
+    else
+    {
+        <div class="height-3"></div>
+        <button class="responsive round slow-ripple" @onclick="createEntry">
+            <i>@(isEditingExistingEntry ? Icons.EDIT : Icons.ADD)</i>
+            <span>@(isEditingExistingEntry ? "Edit" : "Create")</span>
+        </button>
+    }
+</div>
+
+
+
+<div class="snackbar error @(error != null ? "active" : "")">@error</div>
+
+<style>
+    .disabled {
+        pointer-events: none;
+        opacity: 0.6;
+        user-select: none;
+    }
+</style>

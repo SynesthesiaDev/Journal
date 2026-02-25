@@ -1,0 +1,13 @@
+@using global::Journal.Database.Models
+
+@code {
+
+    [Parameter] public List<UserDefinedTag> AllTags { get; set; } = null!;
+    [Parameter] public List<UserDefinedTag> SelectedList { get; set; } = null!;
+
+}
+
+@foreach (var tag in AllTags)
+{
+    <UserTagComponent List="SelectedList" Tag="tag"/>
+}

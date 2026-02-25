@@ -1,0 +1,52 @@
+@using global::Journal.Database.Models
+@using global::Journal.Util
+@using Realms
+@inject RealmConfiguration realmConfig
+@inject NavigationManager navigationManager
+@rendermode InteractiveServer
+
+@code {
+
+    [Parameter] public JournalEntry Entry { get; set; } = null!;
+    [Parameter] public EventCallback OnEntryDeleted { get; set; }
+
+    private Realm realm => Realm.GetInstance(realmConfig);
+
+    private bool popupOpen;
+
+    private async Task delete()
+    {
+        await realm.WriteAsync(() => realm.Remove(Entry));
+        popupOpen = false;
+        await OnEntryDeleted.InvokeAsync();
+    }
+
+    private void edit()
+    {
+        navigationManager.NavigateTo($"/journal/new?edit={Entry.Id.ToString()}");
+    }
+}
+
+<li>
+    <div class="max" style="overflow: hidden; text-overflow: clip">
+        <h6 class="small">@Entry.Title</h6>
+        <div style="opacity: 70%">@Entry.Time.ToDateTime().ToProperlyFormatted()</div>
+    </div>
+    <a class="button" href="/journal/entry/@(Entry.Id.ToString())">View</a>
+    <button class="transparent square" @onclick="()=> { edit(); }">
+        <i>(@Icons.EDIT)</i>
+    </button>
+    <button class="transparent square" @onclick="() => { popupOpen = true; }">
+        <i>(@Icons.DELETE)</i>
+    </button>
+
+</li>
+
+<dialog class="@(popupOpen ? "active" : "")">
+    <h5>Delete</h5>
+    <div>Are you sure you want to delete @Entry.Title from @Entry.Time.ToDateTime().ToProperlyFormatted()</div>
+    <nav class="right-align no-space">
+        <button class="transparent link" @onclick="() => { popupOpen = false; }">Cancel</button>
+        <button class="transparent link" @onclick="delete">Confirm</button>
+    </nav>
+</dialog>

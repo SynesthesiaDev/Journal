@@ -1,0 +1,19 @@
+@using global::Journal.Util
+
+@code {
+
+    [Parameter]
+    public int Rating { get; set; } = 0;
+
+    [Parameter]
+    public string Icon { get; set; } = Icons.UNKNOWN;
+
+    [Parameter]
+    public string Name { get; set; } = "Rating";
+
+}
+
+<br/>
+<div style="display: inline-flex; gap: 5px"><i>@Icon</i> @Name:
+    <b>@Rating / 10</b>
+</div>
