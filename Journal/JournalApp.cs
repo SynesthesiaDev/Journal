@@ -7,6 +7,7 @@ using Journal.Settings;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Realms;
 
 namespace Journal;
@@ -93,6 +94,11 @@ public class JournalApp
         builder.Services.AddRazorComponents()
             .AddInteractiveServerComponents();
         var app = builder.Build();
+
+        app.UseForwardedHeaders(new ForwardedHeadersOptions
+        {
+            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+        });
 
         app.MapGet("/login", async context =>
         {
