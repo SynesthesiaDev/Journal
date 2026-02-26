@@ -19,8 +19,10 @@
     private string title = DateTimeOffset.Now.ToProperlyFormatted();
     private string text = string.Empty;
 
-    private RealmUser realmUser = null!;
-    private List<JournalEntry> entries = [];
+    private async Task<AuthenticationState> getAuthState() => await authStateProvider.GetAuthenticationStateAsync();
+    private async Task<RealmUser> getRealmUser() => RealmUtil.GetRealmUser(await getAuthState(), realmAccess);
+    private async Task<List<JournalEntry>> getEntries() => RealmUtil.GetJournalEntries(await getAuthState(), realmAccess);
+
     private bool alreadyHasEntryForSelectedDay;
     private DateTimeOffset selectedDate = DateTimeOffset.Now.Date;
     private double sleepStartTonight = 3;
@@ -47,18 +49,14 @@
         if (!firstRender) return;
 
         var uri = navigationManager.ToAbsoluteUri(navigationManager.Uri);
-
-        var authState = await authStateProvider.GetAuthenticationStateAsync();
-        realmUser = RealmUtil.GetRealmUser(authState, realmAccess);
-        entries = RealmUtil.GetJournalEntries(authState, realmAccess);
-
-        updateDateState();
+        await updateDateState();
 
         if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("edit", out var editId))
         {
             var parsed = Guid.TryParse(editId!, out var guid);
             if (!parsed) return;
 
+            var entries = await getEntries();
             if (entries.Any(e => e.Id == guid))
             {
                 editingEntry = entries.First(e => e.Id == guid);
@@ -80,22 +78,23 @@
                 editingEntry.MentalHealthTrackerEntry.UserDefinedTags.DistinctBy(t => t.Id).ToList().ForEach(tag => userDefinedTags.Add(tag));
 
                 StateHasChanged();
-                updateDateState();
+                await updateDateState();
             }
         }
 
-        updateDateState();
+        await updateDateState();
     }
 
     private void handleDateChange(ChangeEventArgs e)
     {
         if (!DateTimeOffset.TryParse(e.Value?.ToString(), out var newDate)) return;
         selectedDate = newDate.Date;
-        updateDateState();
+        _ = updateDateState();
     }
 
-    private void updateDateState()
+    private async Task updateDateState()
     {
+        var entries = await getEntries();
         alreadyHasEntryForSelectedDay = entries.Any(s => s.Time.ToDateTime().Date == selectedDate.Date);
         StateHasChanged();
     }
@@ -169,7 +168,7 @@
             {
                 Id = entryGuid,
                 Time = timeMilliseconds,
-                OwnerDiscordId = realmUser.DiscordId,
+                OwnerDiscordId = (await getRealmUser()).DiscordId,
                 Title = title,
                 Text = text,
                 Sunrise = sunriseData.Item1,
@@ -296,11 +295,3 @@
 
 
 <div class="snackbar error @(error != null ? "active" : "")">@error</div>
-
-<style>
-    .disabled {
-        pointer-events: none;
-        opacity: 0.6;
-        user-select: none;
-    }
-</style>
