@@ -24,7 +24,7 @@
 
     private void updateListState()
     {
-        entries = RealmUtil.GetJournalEntries(realmUser!.DiscordId, realm).Reversed().Take(7).ToList();
+        entries = RealmUtil.GetJournalEntries(realmUser!.DiscordId, realm).Reversed().Take(50).ToList();
         StateHasChanged();
     }
 }

@@ -5,31 +5,21 @@
 @inject NavigationManager navigation
 
 @code {
-    public bool NavBarOpen;
-
     public readonly ImmutableList<Page> Pages = Lists.Immutable
     (
         new Page(Icons.HOME, "Home", Routes.HOME, true),
         new Page(Icons.JOURNAL, "Journal", Routes.JOURNAL, false),
-        new Page(Icons.GRAPH, "Mental Health Tracker", Routes.MENTAL_HEALTH_TRACKER, false),
-        new Page(Icons.EXPORT, "Data Export", Routes.EXPORT_DATA, false),
+        new Page(Icons.GRAPH, "Trends", Routes.MENTAL_HEALTH_TRACKER, false),
+        new Page(Icons.EXPORT, "Export", Routes.EXPORT_DATA, false),
         new Page(Icons.SETTINGS, "Settings", Routes.SETTINGS, false)
     );
 
-    private void newJournalEntry()
-    {
-    }
 
     public record Page(string Icon, string Name, string Route, bool Enabled);
-
 }
 
-<nav class="m l left surface-container-lowest @(NavBarOpen ? "max" : "")">
+<nav class="m l bottom surface-container-lowest">
     <header>
-        <button class="extra circle transparent" @onclick="() => NavBarOpen = !NavBarOpen">
-            <i>@(NavBarOpen ? Icons.NAV_BAR_CLOSE : Icons.NAV_BAR_OPEN)</i>
-        </button>
-
         <AuthorizeView>
             <Authorized>
                 <a class="button extend square round" href="@Routes.JOURNAL_NEW_ENTRY">
@@ -37,12 +27,6 @@
                     <span>New Day Entry</span>
                 </a>
             </Authorized>
-            <NotAuthorized>
-                <button class="extend square round" disabled @onclick="newJournalEntry">
-                    <i>@(Icons.ADD)</i>
-                    <span>New Day Entry</span>
-                </button>
-            </NotAuthorized>
         </AuthorizeView>
     </header>
 

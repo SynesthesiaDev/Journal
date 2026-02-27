@@ -1,15 +1,19 @@
 @inherits LayoutComponentBase
 
-<NavBar></NavBar>
+<div class="layout">
 
-<main class="responsive">
-    <AuthorizeView>
-        <Authorized>
-            @Body
-        </Authorized>
-        <NotAuthorized>
-            <NotLoggedIn></NotLoggedIn>
-        </NotAuthorized>
-    </AuthorizeView>
-</main>
+    <main class="responsive">
+        <AuthorizeView>
+            <Authorized>
+                @Body
+            </Authorized>
+            <NotAuthorized>
+                <NotLoggedIn></NotLoggedIn>
+            </NotAuthorized>
+        </AuthorizeView>
+    </main>
 
+    @* Place Nav AFTER main for bottom bars in some Beer CSS versions *@
+    <NavBar></NavBar>
+
+</div>
