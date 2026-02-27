@@ -75,7 +75,10 @@
                 stressTag = editingEntry.MentalHealthTrackerEntry.StressTag;
 
                 userDefinedTags.Clear();
-                editingEntry.MentalHealthTrackerEntry.UserDefinedTags.DistinctBy(t => t.Id).ToList().ForEach(tag => userDefinedTags.Add(tag));
+                editingEntry.MentalHealthTrackerEntry.UserDefinedTags.DistinctBy(t => t.Id).ToList().ForEach(tag =>
+                {
+                    userDefinedTags.Add(tag.Freeze());
+                });
 
                 StateHasChanged();
                 await updateDateState();

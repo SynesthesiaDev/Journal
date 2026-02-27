@@ -1,5 +1,4 @@
 @using global::Journal.Database.Models
-@using Realms
 
 @code {
 
@@ -10,5 +9,5 @@
 
 @foreach (var tag in AllTags)
 {
-    <UserTagComponent List="@SelectedList.ConvertAll(t => t.Freeze())" Tag="tag"/>
+    <UserTagComponent List="@SelectedList" Title="@tag.Title" TagId="@tag.Id"/>
 }

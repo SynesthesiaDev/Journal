@@ -4,32 +4,35 @@
 
 @code {
 
-    [Parameter]
-    public UserDefinedTag Tag { get; set; }
+
+    [Parameter] public string TagId { get; set; }
+
+    [Parameter] public string Title { get; set; }
 
     [Parameter]
     public List<UserDefinedTag> List { get; set; }
 
+    private bool isSelected => List.Any(t => t.Id == TagId);
 
     private void addOrRemoveTag()
     {
-        var idList = List.ConvertAll(t => t.Id);
+        var existing = List.FirstOrDefault(t => t.Id == TagId);
 
-        if (idList.Contains(Tag.Id))
+        if (existing != null)
         {
-            List.RemoveAll(t => t.Id == Tag.Id);
+            List.Remove(existing);
         }
-
-        else List.Add(Tag);
-
-        StateHasChanged();
+        else
+        {
+            List.Add(new UserDefinedTag(TagId, Title));
+        }
     }
 
 }
 
-<button class="chip @(List.ConvertAll(t => t.Id).Contains(Tag.Id) ? "fill" : "")" @onclick="addOrRemoveTag">
-    <span>@Tag.Title</span>
-    @if (List.ConvertAll(t => t.Id).Contains(Tag.Id))
+<button class="chip @(isSelected ? "fill" : "")" @onclick="addOrRemoveTag">
+    <span>@Title</span>
+    @if (isSelected)
     {
         <i>@Icons.CLOSE</i>
     }
