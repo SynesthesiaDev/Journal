@@ -11,18 +11,18 @@
     [Parameter]
     public string Id { get; set; } = string.Empty;
 
-    private JournalEntry? journalEntry = null;
+    private JournalEntry? journalEntry;
     private RealmUser realmUser = null!;
     private Realm realmAccess => Realm.GetInstance(realmConfig);
 
-    private string? error = null;
+    private string? error;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
         var authState = await authStateProvider.GetAuthenticationStateAsync();
 
-        realmUser = RealmUtil.GetRealmUser(authState, realmAccess);
+        realmUser = RealmUtil.GetRealmUser(authState, realmAccess).Freeze();
         if (!Guid.TryParse(Id, out var guid))
         {
             error = "Failed to parse entry Id";
@@ -51,9 +51,12 @@
             @realmUser.DisplayName - @journalEntry.Time.ToDateTime().ToProperlyFormatted(true)
         </span>
     </article>
-    <article class="border" style="white-space: pre-wrap;">
-        <p>@journalEntry!.Text</p>
-    </article>
+    if (journalEntry.Text.Length != 0)
+    {
+        <article class="border" style="white-space: pre-wrap;">
+            <p>@journalEntry!.Text</p>
+        </article>
+    }
 
     <article class="border surface">
         <div style="display: inline-flex; gap: 5px"><i>@Icons.BEDTIME</i> Slept for
