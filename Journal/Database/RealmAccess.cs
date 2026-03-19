@@ -59,5 +59,25 @@ public static class RealmAccess
                 entry.DynamicApi.Set("WeatherId", 0);
             }
         }
+
+        if (oldSchemaVersion == 5)
+        {
+            var realmUsers = migration.NewRealm.DynamicApi.All("RealmUser");
+            foreach (var realmUser in realmUsers)
+            {
+                realmUser.DynamicApi.Set("MobileAuthToken", RealmValue.Null);
+                realmUser.DynamicApi.Set("MobileSyncCode", RealmValue.Null);
+            }
+        }
+
+        if (oldSchemaVersion == 6)
+        {
+            //Nothing
+        }
+
+        if (oldSchemaVersion == 7)
+        {
+            //Nothing
+        }
     }
 }

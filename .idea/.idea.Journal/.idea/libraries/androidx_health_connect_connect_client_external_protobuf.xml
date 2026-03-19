@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="androidx.health.connect.connect-client-external-protobuf">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.nuget/packages/xamarin.androidx.health.connect.connectclientexternalprotobuf/1.1.0.2/jar/androidx.health.connect.connect-client-external-protobuf.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
