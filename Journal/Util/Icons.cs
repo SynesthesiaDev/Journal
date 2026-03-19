@@ -25,7 +25,17 @@ public static class Icons
     public const string RATING = "kid_star";
     public const string PRODUCTIVITY_RATING = "checklist";
     public const string MOOD_RATING = "psychiatry";
+    public const string HEALTH_STEPS = "steps";
+    public const string HEALTH_HEART_PTS_GOOD = "heart_check";
+    public const string HEALTH_HEART_PTS_BAD = "heart_minus";
+    public const string HEALTH_MAP = "map";
+    public const string HEALTH_CALORIES = "mode_heat";
 
+
+    public static string GetHeartPtsIcon(double heartPts)
+    {
+        return heartPts >= 20.0 ? HEALTH_HEART_PTS_GOOD : HEALTH_HEART_PTS_BAD;
+    }
 
     public static string GetForWeatherType(Weather weather)
     {

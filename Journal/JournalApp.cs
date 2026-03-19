@@ -14,16 +14,21 @@ namespace Journal;
 
 public class JournalApp
 {
-    // List of changes:
+    // List of schema changes:
     // 2 - Added `SleepStart` and `SleepEnd` so journal entries can be edited
     // 3 - Added `MoodRating` and `ProductivityRating` to `MentalHealthTrackerEntry`
     // 4 - Added `Sunrise`, `Sunset` and `Weather` to `JournalEntry`
     // 5 - Changed `Weather` to an enum
-    public const ulong SCHEMA_VERSION = 5;
+    // 6 - Added `MobileAuthToken` and `MobileSyncCode` to `RealmUser`
+    // 7 - Added `HealthSync` to `RealmUser`
+    // 8 - Made `HealthSync` map instead of one value in `RealmUser`
+    public const ulong SCHEMA_VERSION = 8;
 
     public static readonly string DATA_PATH = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data");
 
     public static RealmConfiguration RealmConfig = null!;
+
+    private static MobileConnectAuthApi mobileConnectAuthApi = null!;
 
     public static void Main(string[] args)
     {
@@ -102,6 +107,9 @@ public class JournalApp
         {
             ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
         });
+
+        mobileConnectAuthApi = new MobileConnectAuthApi(app, RealmConfig);
+        mobileConnectAuthApi.Initialize();
 
         app.MapGet("/login", async context =>
         {

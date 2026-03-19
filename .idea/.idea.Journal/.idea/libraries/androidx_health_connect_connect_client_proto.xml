@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="androidx.health.connect.connect-client-proto">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.nuget/packages/xamarin.androidx.health.connect.connectclientproto/1.1.0.2/jar/androidx.health.connect.connect-client-proto.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

@@ -1,4 +1,5 @@
 @page "/journal/entry/{Id}"
+@using System.Globalization
 @using global::Journal.Database.Models
 @using global::Journal.Util
 @using Realms
@@ -14,6 +15,7 @@
     private JournalEntry? journalEntry;
     private RealmUser realmUser = null!;
     private Realm realmAccess => Realm.GetInstance(realmConfig);
+    private HealthSync? healthSync = null;
 
     private string? error;
 
@@ -33,7 +35,14 @@
         if (journalEntry == null)
         {
             error = "Failed to get journal entry";
+            return;
         }
+
+        var midnightDate = DateTimeOffset.FromUnixTimeMilliseconds(journalEntry.Time).Date;
+        long midnightTimestamp = new DateTimeOffset(midnightDate, TimeSpan.Zero).ToUnixTimeMilliseconds();
+
+        var hasHealthSync = realmUser.HealthSync.TryGetValue(midnightTimestamp.ToString(), out var sync);
+        healthSync = hasHealthSync ? sync : null;
 
         StateHasChanged();
     }
@@ -58,6 +67,32 @@
         </article>
     }
 
+    @if (healthSync != null)
+    {
+        <article class="border surface">
+
+            <div style="display: inline-flex; gap: 5px;"><i>@Icons.HEALTH_STEPS</i>
+                <b>@healthSync.Steps.ToString("#,##0", CultureInfo.InvariantCulture)</b> Steps
+            </div>
+
+            <br/>
+            <div style="display: inline-flex; gap: 5px"><i>@Icons.GetHeartPtsIcon(healthSync.HeartPoints)</i>
+                <b>@healthSync.HeartPoints / 20</b> Heart Pts
+            </div>
+
+            <br/>
+            <div style="display: inline-flex; gap: 5px"><i>@Icons.HEALTH_MAP</i> Distance Walked:
+                <b>@Math.Round(healthSync.DistanceKm, 2) Km</b> over <b>@healthSync.MoveMinutes minutes</b>
+            </div>
+
+            <br/>
+            <div style="display: inline-flex; gap: 5px"><i>@Icons.HEALTH_CALORIES</i> Calories Burned:
+                <b>@healthSync.Calories.ToString("#,##0", CultureInfo.InvariantCulture)</b> Kcal
+            </div>
+
+        </article>
+    }
+
     <article class="border surface">
         <div style="display: inline-flex; gap: 5px"><i>@Icons.BEDTIME</i> Slept for
             <b>@journalEntry.MentalHealthTrackerEntry.HoursSlept hours</b>
@@ -73,8 +108,9 @@
         <div style="display: inline-flex; gap: 5px"><i>@Icons.GetForWeatherType(journalEntry.Weather)</i> Weather was
             <b>@journalEntry.Weather.GetDisplayName()</b>
         </div>
+    </article>
 
-        <br/>
+    <article class="border surface">
 
         <RatingComponent
             Icon="@Icons.MOOD_RATING"

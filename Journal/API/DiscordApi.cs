@@ -1,6 +1,7 @@
 using Discord;
 using Discord.Rest;
 using Journal.Database.Models;
+using Optional = Codon.Optionals.Optional;
 
 namespace Journal.API;
 
@@ -21,7 +22,10 @@ public static class DiscordApi
                 user.Username,
                 user.GlobalName,
                 user.GetAvatarUrl(),
-                false
+                false,
+                Optional.Empty<string>(),
+                Optional.Empty<string>(),
+                []
             );
 
             return newJournalUser;
