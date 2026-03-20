@@ -1,6 +1,8 @@
 ﻿@page "/"
+@using System.Text.RegularExpressions
 @using global::Journal.Database.Models
 @using global::Journal.Util
+@using SynesthesiaUtil.Extensions
 @using Realms
 @inject RealmConfiguration realmConfig
 @inject AuthenticationStateProvider authStateProvider
@@ -13,12 +15,20 @@
 
     private Realm realm => Realm.GetInstance(realmConfig);
 
+    private bool hasHealthSyncLinked;
+    private bool healthConnectPopupVisible;
+    private string healthConnectCode = string.Empty;
+    private string? healthConnectPopupError;
+    private bool healthConnectLoading;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
 
         var authState = await authStateProvider.GetAuthenticationStateAsync();
         realmUser = RealmUtil.GetRealmUser(authState, realm);
+
+        hasHealthSyncLinked = realmUser.MobileAuthToken != null;
         updateListState();
     }
 
@@ -26,6 +36,49 @@
     {
         entries = RealmUtil.GetJournalEntries(realmUser!.DiscordId, realm).Reversed().Take(50).ToList();
         StateHasChanged();
+    }
+
+    private async Task linkHealthConnect()
+    {
+        healthConnectPopupError = null;
+        if (realmUser == null)
+        {
+            healthConnectPopupError = "User is null";
+            return;
+        }
+
+        if (healthConnectCode.IsEmpty())
+        {
+            healthConnectPopupError = "Code cannot be empty";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(healthConnectCode) ||
+            !Regex.IsMatch(healthConnectCode, @"^\d{3}-\d{3}$"))
+        {
+            healthConnectPopupError = "Code must be in the format 000-000";
+            return;
+        }
+
+        healthConnectLoading = true;
+        await realm.WriteAsync(() =>
+        {
+            realmUser.MobileSyncCode = healthConnectCode;
+        });
+
+        healthConnectPopupVisible = false;
+    }
+
+    private async Task unlinkHealthConnect()
+    {
+        if(realmUser == null) return;
+
+        await realm.WriteAsync(() =>
+        {
+            realmUser.MobileAuthToken = null;
+            realmUser.MobileSyncCode = null;
+            hasHealthSyncLinked = false;
+        });
     }
 }
 
@@ -38,12 +91,30 @@
 }
 else
 {
-    <article class="border">
-        <div class="row">
-            <img class="circle large" src="@(realmUser.ProfileImageUrl)" alt="profile picture">
-            <div class="max">
+    <article class="border padding">
+        <div class="row wrap s-center-align m-left-align">
+
+            <img class="circle large" src="@(realmUser.ProfileImageUrl)" alt="profile">
+
+            <div class="max s12 m-fill">
                 <h5>Hey @(realmUser.DisplayName)!</h5>
             </div>
+
+            @if (!hasHealthSyncLinked)
+            {
+                <button class="fill s12 m-width-auto" @onclick="() => { healthConnectPopupVisible = true; }">
+                    <i>@Icons.HEALTH_HEART_PTS_GOOD</i>
+                    <span>Link Health Connect</span>
+                </button>
+            }
+            else
+            {
+                <button class="fill s12 m-width-auto" @onclick="unlinkHealthConnect">
+                    <i>@Icons.HEALTH_HEART_PTS_BAD</i>
+                    <span>Unlink Health Connect</span>
+                </button>
+            }
+
         </div>
     </article>
     <ul class="list border">
@@ -53,3 +124,21 @@ else
         }
     </ul>
 }
+
+<dialog class="@(healthConnectPopupVisible ? "active" : "")">
+    <h5>Health Connect</h5>
+    <div>Enter the numbers you see in your app below</div>
+    <div class="field label @(healthConnectPopupError != null ? "invalid" : "") @(healthConnectLoading ? "disabled" : "") border">
+        <input type="text" @bind="healthConnectCode" @bind:event="oninput">
+        <label>Code</label>
+        @if (healthConnectPopupError != null)
+        {
+            <output class="invalid">@healthConnectPopupError</output>
+        }
+    </div>
+
+    <nav class="right-align no-space">
+        <button class="transparent link" @onclick="() => { healthConnectPopupVisible = false; }">Cancel</button>
+        <button class="fill link" @onclick="linkHealthConnect">Confirm</button>
+    </nav>
+</dialog>

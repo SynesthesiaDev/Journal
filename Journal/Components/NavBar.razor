@@ -2,16 +2,15 @@
 @using global::Journal.Util
 @using SynesthesiaUtil
 @rendermode InteractiveServer
-@inject NavigationManager navigation
 
 @code {
     public readonly ImmutableList<Page> Pages = Lists.Immutable
     (
         new Page(Icons.HOME, "Home", Routes.HOME, true),
-        new Page(Icons.JOURNAL, "Journal", Routes.JOURNAL, false),
-        new Page(Icons.GRAPH, "Trends", Routes.MENTAL_HEALTH_TRACKER, false),
-        new Page(Icons.EXPORT, "Export", Routes.EXPORT_DATA, false),
-        new Page(Icons.SETTINGS, "Settings", Routes.SETTINGS, false)
+        // new Page(Icons.JOURNAL, "Journal", Routes.JOURNAL, false),
+        new Page(Icons.GRAPH, "Trends", Routes.MENTAL_HEALTH_TRACKER, false)
+        // new Page(Icons.EXPORT, "Export", Routes.EXPORT_DATA, false),
+        // new Page(Icons.SETTINGS, "Settings", Routes.SETTINGS, false)
     );
 
 
