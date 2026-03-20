@@ -20,13 +20,14 @@
     private string healthConnectCode = string.Empty;
     private string? healthConnectPopupError;
     private bool healthConnectLoading;
+    private AuthenticationState authenticationState = null!;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
 
-        var authState = await authStateProvider.GetAuthenticationStateAsync();
-        realmUser = RealmUtil.GetRealmUser(authState, realm);
+        authenticationState = await authStateProvider.GetAuthenticationStateAsync();
+        realmUser = RealmUtil.GetRealmUser(authenticationState, realm);
 
         hasHealthSyncLinked = realmUser.MobileAuthToken != null;
         updateListState();
@@ -71,7 +72,7 @@
 
     private async Task unlinkHealthConnect()
     {
-        if(realmUser == null) return;
+        realmUser = RealmUtil.GetRealmUser(authenticationState, realm);
 
         await realm.WriteAsync(() =>
         {
