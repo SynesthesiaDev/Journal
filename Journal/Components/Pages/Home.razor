@@ -2,24 +2,22 @@
 @using System.Text.RegularExpressions
 @using global::Journal.Database.Models
 @using global::Journal.Util
-@using SynesthesiaUtil.Extensions
-@using Realms
-@inject RealmConfiguration realmConfig
+@using Journal.Extensions
+@using Synesthesia.Utils.Extensions
+@using ListExtensions = Journal.Extensions.ListExtensions
 @inject AuthenticationStateProvider authStateProvider
 @rendermode InteractiveServer
 
 @code
 {
-    private RealmUser? realmUser;
+    private JournalUser? journalUser;
     private List<JournalEntry> entries = [];
 
-    private Realm realm => Realm.GetInstance(realmConfig);
-
-    private bool hasHealthSyncLinked;
-    private bool healthConnectPopupVisible;
+    private bool hasGoogleHealthLinked;
+    private bool googleHealthPopupVisible;
     private string healthConnectCode = string.Empty;
-    private string? healthConnectPopupError;
-    private bool healthConnectLoading;
+    private string? googleHealthPopupError;
+    private bool googleHealthLoading;
     private AuthenticationState authenticationState = null!;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -27,66 +25,70 @@
         if (!firstRender) return;
 
         authenticationState = await authStateProvider.GetAuthenticationStateAsync();
-        realmUser = RealmUtil.GetRealmUser(authenticationState, realm);
+        journalUser = JournalUser.DB_COLLECTION.FindOrNull(DatabaseUtils.GetDiscordId(authenticationState));
 
-        hasHealthSyncLinked = realmUser.MobileAuthToken != null;
+        hasGoogleHealthLinked = journalUser?.MobileAuthToken != null;
         updateListState();
     }
 
     private void updateListState()
     {
-        entries = RealmUtil.GetJournalEntries(realmUser!.DiscordId, realm).Reversed().Take(50).ToList();
+        if (journalUser == null) return;
+
+        entries = journalUser.ResolveJournalEntries().SortByDate(ListExtensions.SortDirection.Descending).Take(25).ToList();
         StateHasChanged();
     }
 
-    private async Task linkHealthConnect()
+    private void linkGoogleHealth()
     {
-        healthConnectPopupError = null;
-        if (realmUser == null)
+        googleHealthPopupError = null;
+        if (journalUser == null)
         {
-            healthConnectPopupError = "User is null";
+            googleHealthPopupError = "User is null";
             return;
         }
 
         if (healthConnectCode.IsEmpty())
         {
-            healthConnectPopupError = "Code cannot be empty";
+            googleHealthPopupError = "Code cannot be empty";
             return;
         }
 
         if (string.IsNullOrWhiteSpace(healthConnectCode) ||
             !Regex.IsMatch(healthConnectCode, @"^\d{3}-\d{3}$"))
         {
-            healthConnectPopupError = "Code must be in the format 000-000";
+            googleHealthPopupError = "Code must be in the format 000-000";
             return;
         }
 
-        healthConnectLoading = true;
-        await realm.WriteAsync(() =>
-        {
-            realmUser.MobileSyncCode = healthConnectCode;
-        });
-
-        healthConnectPopupVisible = false;
+        googleHealthLoading = true;
+        JournalUser.DB_COLLECTION.Insert(journalUser.DiscordId, journalUser with { MobileSyncCode = healthConnectCode });
+        googleHealthPopupVisible = false;
     }
 
-    private async Task unlinkHealthConnect()
+    private void unlinkHealthConnect()
     {
-        realmUser = RealmUtil.GetRealmUser(authenticationState, realm);
-
-        await realm.WriteAsync(() =>
+        if (journalUser == null)
         {
-            realmUser.MobileAuthToken = null;
-            realmUser.MobileSyncCode = null;
-            hasHealthSyncLinked = false;
+            googleHealthPopupError = "User does not exist";
+            return;
+        }
+
+        googleHealthPopupError = null;
+
+        JournalUser.DB_COLLECTION.Insert(journalUser.DiscordId, journalUser with
+        {
+            MobileAuthToken = null,
+            MobileSyncCode = null,
         });
+        hasGoogleHealthLinked = false;
     }
 }
 
 <PageTitle>Home</PageTitle>
 <div class="height-3"></div>
 
-@if (realmUser == null)
+@if (journalUser == null)
 {
     <progress value="100" max="100" class="indeterminate"></progress>
 }
@@ -95,51 +97,51 @@ else
     <article class="border padding">
         <div class="row wrap s-center-align m-left-align">
 
-            <img class="circle large" src="@(realmUser.ProfileImageUrl)" alt="profile">
+            <img class="circle large" src="@(journalUser.ProfileImageUrl)" alt="profile picture">
 
             <div class="max s12 m-fill">
-                <h5>Hey @(realmUser.DisplayName)!</h5>
+                <h5>Hey @(journalUser.DisplayName)!</h5>
             </div>
 
-            @if (!hasHealthSyncLinked)
+            @if (!hasGoogleHealthLinked)
             {
-                <button class="fill s12 m-width-auto" @onclick="() => { healthConnectPopupVisible = true; }">
+                <button class="fill s12 m-width-auto" @onclick="() => { googleHealthPopupVisible = true; }">
                     <i>@Icons.HEALTH_HEART_PTS_GOOD</i>
-                    <span>Link Health Connect</span>
+                    <span>Link Google Health</span>
                 </button>
             }
             else
             {
                 <button class="fill s12 m-width-auto" @onclick="unlinkHealthConnect">
                     <i>@Icons.HEALTH_HEART_PTS_BAD</i>
-                    <span>Unlink Health Connect</span>
+                    <span>Unlink Google Health</span>
                 </button>
             }
 
         </div>
     </article>
-    <ul class="list border">
+
         @foreach (var entry in entries)
         {
             <JournalEntryCard OnEntryDeleted="updateListState" Entry="entry"></JournalEntryCard>
         }
-    </ul>
 }
 
-<dialog class="@(healthConnectPopupVisible ? "active" : "")">
-    <h5>Health Connect</h5>
+<dialog class="@(googleHealthPopupVisible ? "active" : "")">
+    <h5>Google Health</h5>
     <div>Enter the numbers you see in your app below</div>
-    <div class="field label @(healthConnectPopupError != null ? "invalid" : "") @(healthConnectLoading ? "disabled" : "") border">
+    <div
+        class="field label @(googleHealthPopupError != null ? "invalid" : "") @(googleHealthLoading ? "disabled" : "") border">
         <input type="text" @bind="healthConnectCode" @bind:event="oninput">
         <label>Code</label>
-        @if (healthConnectPopupError != null)
+        @if (googleHealthPopupError != null)
         {
-            <output class="invalid">@healthConnectPopupError</output>
+            <output class="invalid">@googleHealthPopupError</output>
         }
     </div>
 
     <nav class="right-align no-space">
-        <button class="transparent link" @onclick="() => { healthConnectPopupVisible = false; }">Cancel</button>
-        <button class="fill link" @onclick="linkHealthConnect">Confirm</button>
+        <button class="transparent link" @onclick="() => { googleHealthPopupVisible = false; }">Cancel</button>
+        <button class="fill link" @onclick="linkGoogleHealth">Confirm</button>
     </nav>
 </dialog>

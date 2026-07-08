@@ -30,6 +30,7 @@ public static class Icons
     public const string HEALTH_HEART_PTS_BAD = "heart_minus";
     public const string HEALTH_MAP = "map";
     public const string HEALTH_CALORIES = "mode_heat";
+    public const string BACK = "arrow_back";
 
 
     public static string GetHeartPtsIcon(double heartPts)

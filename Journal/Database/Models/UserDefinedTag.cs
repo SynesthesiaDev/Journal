@@ -1,28 +1,19 @@
+using Codon.Binary;
 using Codon.Codec;
-using Realms;
 
 namespace Journal.Database.Models;
 
-public partial class UserDefinedTag : RealmObject
+public record UserDefinedTag(string Id, string Title)
 {
-    public string Id { get; set; } = string.Empty;
-    public string Title { get; set; } = string.Empty;
+    public static readonly StructCodec<UserDefinedTag> CODEC = StructCodec.For<UserDefinedTag>()
+        .Field("Id", Codecs.STRING, u => u.Id)
+        .Field("Title", Codecs.STRING, u => u.Title)
+        .Build((id, title) => new UserDefinedTag(id, title));
 
-    public UserDefinedTag(string id, string title)
-    {
-        Id = id;
-        Title = title;
-    }
+    public static readonly IBinaryCodec<UserDefinedTag> BINARY_CODEC = BinaryCodecs.For<UserDefinedTag>()
+        .Field(BinaryCodecs.STRING, u => u.Id)
+        .Field(BinaryCodecs.STRING, u => u.Title)
+        .Build((id, title) => new UserDefinedTag(id, title));
 
-    // realm needs
-    public UserDefinedTag()
-    {
-    }
 
-    public static readonly StructCodec<UserDefinedTag> CODEC = StructCodec.Of
-    (
-        "id", Codecs.STRING, u => u.Id,
-        "title", Codecs.STRING, u => u.Title,
-        (id, title) => new UserDefinedTag(id, title)
-    );
 }

@@ -2,8 +2,7 @@
 @using System.Globalization
 @using global::Journal.Database.Models
 @using global::Journal.Util
-@using Realms
-@inject RealmConfiguration realmConfig
+@using Serilog
 @inject AuthenticationStateProvider authStateProvider
 @rendermode InteractiveServer
 
@@ -13,9 +12,8 @@
     public string Id { get; set; } = string.Empty;
 
     private JournalEntry? journalEntry;
-    private RealmUser realmUser = null!;
-    private Realm realmAccess => Realm.GetInstance(realmConfig);
-    private HealthSync? healthSync = null;
+    private JournalUser journalUser = null!;
+    private HealthSync? healthSync;
 
     private string? error;
 
@@ -24,24 +22,26 @@
         if (!firstRender) return;
         var authState = await authStateProvider.GetAuthenticationStateAsync();
 
-        realmUser = RealmUtil.GetRealmUser(authState, realmAccess).Freeze();
+        journalUser = JournalUser.DB_COLLECTION.Find(DatabaseUtils.GetDiscordId(authState));
+
         if (!Guid.TryParse(Id, out var guid))
         {
             error = "Failed to parse entry Id";
             return;
         }
 
-        journalEntry = RealmUtil.GetJournalEntryOrNull(guid, realmUser.DiscordId, realmAccess);
+        journalEntry = DatabaseUtils.GetJournalEntryOrNull(guid, journalUser.DiscordId);
         if (journalEntry == null)
         {
             error = "Failed to get journal entry";
+            Log.Error("Failed to get entry");
             return;
         }
 
         var midnightDate = DateTimeOffset.FromUnixTimeMilliseconds(journalEntry.Time).Date;
         long midnightTimestamp = new DateTimeOffset(midnightDate, TimeSpan.Zero).ToUnixTimeMilliseconds();
 
-        var hasHealthSync = realmUser.HealthSync.TryGetValue(midnightTimestamp.ToString(), out var sync);
+        var hasHealthSync = journalUser.HealthSync.TryGetValue(midnightTimestamp.ToString(), out var sync);
         healthSync = hasHealthSync ? sync : null;
 
         StateHasChanged();
@@ -56,8 +56,8 @@
         <h3 class="bold">@journalEntry!.Title</h3>
         <hr class="medium">
         <span style="display: inline-flex; align-items: center; gap: 8px;">
-            <img width="23px" src="@realmUser.ProfileImageUrl" alt="Profile Picture Url"/>
-            @realmUser.DisplayName - @journalEntry.Time.ToDateTime().ToProperlyFormatted(true)
+            <img width="23px" src="@journalUser.ProfileImageUrl" alt="Profile Picture Url"/>
+            @journalUser.DisplayName - @journalEntry.Time.ToDateTime().ToProperlyFormatted(true)
         </span>
     </article>
     if (journalEntry.Text.Length != 0)

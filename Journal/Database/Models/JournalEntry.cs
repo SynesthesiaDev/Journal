@@ -1,67 +1,55 @@
+using Codon.Binary;
 using Codon.Codec;
 using Journal.Util;
-using Realms;
-using SynesthesiaUtil.Extensions;
+using Nocturne.Database.API;
+using Nocturne.Database.Migrations;
 
 namespace Journal.Database.Models;
 
-public partial class JournalEntry : RealmObject
+public record JournalEntry(
+    Guid Id,
+    long OwnerDiscordId,
+    long Time,
+    string Title,
+    string Text,
+    int Sunrise,
+    int Sunset,
+    Weather Weather,
+    MentalHealthTrackerEntry MentalHealthTrackerEntry
+)
 {
-    [PrimaryKey]
-    public Guid Id { get; set; } = Guid.Empty;
+    public static readonly Codec<JournalEntry> CODEC = StructCodec.For<JournalEntry>()
+        .Field("Id", ExtraCodecs.GUID_CODEC, e => e.Id)
+        .Field("OwnerDiscordId", Codecs.LONG, e => e.OwnerDiscordId)
+        .Field("Time", Codecs.LONG, e => e.Time)
+        .Field("Title", Codecs.STRING, e => e.Title)
+        .Field("Text", Codecs.STRING, e => e.Text)
+        .Field("Sunrise", Codecs.INT, e => e.Sunrise)
+        .Field("Sunset", Codecs.INT, e => e.Sunset)
+        .Field("Weather", Codecs.Enum<Weather>(), e => e.Weather)
+        .Field("MentalHealthTrackerEntry", MentalHealthTrackerEntry.CODEC, e => e.MentalHealthTrackerEntry)
+        .Build((guid, l, arg3, arg4, arg5, arg6, arg7, arg8, arg9) => new JournalEntry(guid, l, arg3, arg4, arg5, arg6, arg7, arg8, arg9));
 
-    public long OwnerDiscordId { get; set; } = 0L;
-    public long Time { get; set; } = 0L;
-    public string Title { get; set; } = string.Empty;
-    public string Text { get; set; } = string.Empty;
+    public static readonly IBinaryCodec<JournalEntry> BINARY_CODEC = BinaryCodecs.For<JournalEntry>()
+        .Field(BinaryCodecs.GUID, e => e.Id)
+        .Field(BinaryCodecs.LONG, e => e.OwnerDiscordId)
+        .Field(BinaryCodecs.LONG, e => e.Time)
+        .Field(BinaryCodecs.STRING, e => e.Title)
+        .Field(BinaryCodecs.STRING, e => e.Text)
+        .Field(BinaryCodecs.INT, e => e.Sunrise)
+        .Field(BinaryCodecs.INT, e => e.Sunset)
+        .Field(BinaryCodecs.Enum<Weather>(), e => e.Weather)
+        .Field(MentalHealthTrackerEntry.BINARY_CODEC, e => e.MentalHealthTrackerEntry)
+        .Build((guid, l, arg3, arg4, arg5, arg6, arg7, arg8, arg9) => new JournalEntry(guid, l, arg3, arg4, arg5, arg6, arg7, arg8, arg9));
 
-    public int Sunrise { get; set; } = 25200; // 7AM default
-
-    public int Sunset { get; set; } = 73800; // 8:30PM default
-
-    public int WeatherId { get; set; } = 0;
-
-    [Ignored]
-    public Weather Weather
-    {
-        get => (Weather)WeatherId;
-        init => value.Ordinal();
-    }
-
-    public MentalHealthTrackerEntry MentalHealthTrackerEntry { get; set; } = new();
-
-    [Ignored]
-    public double SunlightHours => TimeWeatherUtils.CalculateSunlightHours(Sunrise, Sunset, MentalHealthTrackerEntry.SleepStart, MentalHealthTrackerEntry.SleepEnd).Truncate(1);
-
-    // realm needs
-    public JournalEntry()
-    {
-    }
-
-    public JournalEntry(Guid id, long ownerDiscordId, long time, string title, string text, int sunrise, int sunset, Weather weather, MentalHealthTrackerEntry mentalHealthTrackerEntry)
-    {
-        Id = id;
-        OwnerDiscordId = ownerDiscordId;
-        Time = time;
-        Title = title;
-        Text = text;
-        MentalHealthTrackerEntry = mentalHealthTrackerEntry;
-        Sunrise = sunrise;
-        Sunset = sunset;
-        Weather = weather;
-    }
-
-    public static readonly StructCodec<JournalEntry> CODEC = StructCodec.Of
+    public static readonly NocturneCollection<Guid, JournalEntry> DB_COLLECTION = JournalApp.NOCTURNE_DATABASE.For
     (
-        "id", Codecs.STRING.Transform(Guid.Parse, g => g.ToString()), e => e.Id,
-        "owner_discord_id", Codecs.LONG, e => e.OwnerDiscordId,
-        "time", Codecs.LONG, e => e.Time,
-        "title", Codecs.STRING, e => e.Title,
-        "text", Codecs.STRING, e => e.Text,
-        "sunrise", Codecs.INT, e => e.Sunrise,
-        "sunset", Codecs.INT, e => e.Sunset,
-        "weather", Codecs.Enum<Weather>(), e => e.Weather,
-        "mental_health_tracker_entry", MentalHealthTrackerEntry.CODEC, e => e.MentalHealthTrackerEntry,
-        (id, owner, time, title, text, sunrise, sunset, weather, mental) => new JournalEntry(id, owner, time, title, text, sunrise, sunset, weather, mental)
+        "journal_entries",
+        0,
+        KeySerializers.GUID,
+        NocturneSerializer.FromCodec(BINARY_CODEC),
+        IMigrationStrategy.Migrations().Build()
     );
+
+    public double SunlightHours => TimeWeatherUtils.CalculateSunlightHours(Sunrise, Sunset, MentalHealthTrackerEntry.SleepStart, MentalHealthTrackerEntry.SleepEnd).Truncate(1);
 }

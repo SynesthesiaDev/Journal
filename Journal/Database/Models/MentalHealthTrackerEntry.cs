@@ -1,79 +1,46 @@
+using Codon.Binary;
 using Codon.Codec;
-using Realms;
-using SynesthesiaUtil.Extensions;
 
 namespace Journal.Database.Models;
 
-public partial class MentalHealthTrackerEntry : EmbeddedObject
+public record MentalHealthTrackerEntry(
+    MotivationTag MotivationTag,
+    SocialTag SocialTag,
+    StressTag StressTag,
+    double SleepStart,
+    double SleepEnd,
+    double HoursSlept,
+    List<UserDefinedTag> UserDefinedTags,
+    int OverallDayRating,
+    int MoodRating,
+    int ProductivityRating
+)
 {
-    public int MotivationTagId { get; set; } = 0;
-    public int SocialTagId { get; set; } = 0;
-    public int StressTagId { get; set; } = 0;
-    public double SleepStart { get; set; } = 0.0;
-    public double SleepEnd { get; set; } = 0.0;
-    public double HoursSlept { get; set; } = 0.0;
-    public IList<UserDefinedTag> UserDefinedTags { get; }
-    public int OverallDayRating { get; set; } = 0;
+    public static readonly StructCodec<MentalHealthTrackerEntry> CODEC = StructCodec.For<MentalHealthTrackerEntry>()
+        .Field("MotivationTag", Codecs.Enum<MotivationTag>(), e => e.MotivationTag)
+        .Field("SocialTag", Codecs.Enum<SocialTag>(), e => e.SocialTag)
+        .Field("StressTag", Codecs.Enum<StressTag>(), e => e.StressTag)
+        .Field("SleepStart", Codecs.DOUBLE, e => e.SleepStart)
+        .Field("SleepEnd", Codecs.DOUBLE, e => e.SleepEnd)
+        .Field("HoursSlept", Codecs.DOUBLE, e => e.HoursSlept)
+        .Field("UserDefinedTags", UserDefinedTag.CODEC.List(), e => e.UserDefinedTags)
+        .Field("OverallDayRating", Codecs.INT, e => e.OverallDayRating)
+        .Field("MoodRating", Codecs.INT, e => e.MoodRating)
+        .Field("ProductivityRating", Codecs.INT, e => e.ProductivityRating)
+        .Build((tag, socialTag, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10) => new MentalHealthTrackerEntry(tag, socialTag, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10));
 
-    public int MoodRating { get; set; } = 0;
 
-    public int ProductivityRating { get; set; } = 0;
+    public static readonly IBinaryCodec<MentalHealthTrackerEntry> BINARY_CODEC = BinaryCodecs.For<MentalHealthTrackerEntry>()
+        .Field(BinaryCodecs.Enum<MotivationTag>(), e => e.MotivationTag)
+        .Field(BinaryCodecs.Enum<SocialTag>(), e => e.SocialTag)
+        .Field(BinaryCodecs.Enum<StressTag>(), e => e.StressTag)
+        .Field(BinaryCodecs.DOUBLE, e => e.SleepStart)
+        .Field(BinaryCodecs.DOUBLE, e => e.SleepEnd)
+        .Field(BinaryCodecs.DOUBLE, e => e.HoursSlept)
+        .Field(UserDefinedTag.BINARY_CODEC.List(), e => e.UserDefinedTags)
+        .Field(BinaryCodecs.INT, e => e.OverallDayRating)
+        .Field(BinaryCodecs.INT, e => e.MoodRating)
+        .Field(BinaryCodecs.INT, e => e.ProductivityRating)
+        .Build((tag, socialTag, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10) => new MentalHealthTrackerEntry(tag, socialTag, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10));
 
-    [Ignored]
-    public MotivationTag MotivationTag
-    {
-        get => (MotivationTag)MotivationTagId;
-        init => MotivationTagId = value.Ordinal();
-    }
-
-    [Ignored]
-    public SocialTag SocialTag
-    {
-        get => (SocialTag)SocialTagId;
-        init => SocialTagId = value.Ordinal();
-    }
-
-    [Ignored]
-    public StressTag StressTag
-    {
-        get => (StressTag)StressTagId;
-        init => StressTagId = value.Ordinal();
-    }
-
-    [Ignored]
-    private List<UserDefinedTag> listTransform => (List<UserDefinedTag>)UserDefinedTags;
-
-    public MentalHealthTrackerEntry(MotivationTag motivationTag, SocialTag socialTag, StressTag stressTag, double sleepStart, double sleepEnd, double hoursSlept, List<UserDefinedTag> userDefinedTags, int overallDayRating, int moodRating, int productivityRating)
-    {
-        MotivationTag = motivationTag;
-        SocialTag = socialTag;
-        StressTag = stressTag;
-        UserDefinedTags = userDefinedTags;
-        OverallDayRating = overallDayRating;
-        SleepStart = sleepStart;
-        SleepEnd = sleepEnd;
-        HoursSlept = hoursSlept;
-        MoodRating = moodRating;
-        ProductivityRating = productivityRating;
-    }
-
-    // realm needs
-    public MentalHealthTrackerEntry()
-    {
-    }
-
-    public static readonly StructCodec<MentalHealthTrackerEntry> CODEC = StructCodec.Of
-    (
-        "motivation_tag", Codecs.Enum<MotivationTag>(), e => e.MotivationTag,
-        "social_tag", Codecs.Enum<SocialTag>(), e => e.SocialTag,
-        "stress_tag", Codecs.Enum<StressTag>(), e => e.StressTag,
-        "sleep_start", Codecs.DOUBLE, e => e.SleepStart,
-        "sleep_end", Codecs.DOUBLE, e => e.SleepEnd,
-        "hours_slept", Codecs.DOUBLE, e => e.HoursSlept,
-        "user_defined_tags", UserDefinedTag.CODEC.List(), e => e.listTransform,
-        "overall_day_rating", Codecs.INT, e => e.OverallDayRating,
-        "mood_rating", Codecs.INT, e => e.MoodRating,
-        "productivity_rating", Codecs.INT, e => e.ProductivityRating,
-        (motivation, social, stress, sleepStart, sleepEnd, hoursSlept, userTags, rating, mood, productivity) => new MentalHealthTrackerEntry(motivation, social, stress, sleepStart, sleepEnd, hoursSlept, userTags, rating, mood, productivity)
-    );
 }

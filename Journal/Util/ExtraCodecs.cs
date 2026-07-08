@@ -1,12 +1,15 @@
 using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 using System.Security.Cryptography;
+using Codon.Codec;
 using Codon.Optionals;
 
 namespace Journal.Util;
 
-public static class Extensions
+public static class ExtraCodecs
 {
+    public static readonly Codec<Guid> GUID_CODEC = Codecs.STRING.Transform(Guid.Parse, guid => guid.ToString());
+
     public static async Task<string> GetBodyString(this HttpRequest request)
     {
         var bodyStream = new StreamReader(request.Body);

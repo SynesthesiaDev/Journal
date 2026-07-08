@@ -1,22 +1,24 @@
+@using System.Globalization
 @using global::Journal.Database.Models
 @using global::Journal.Util
-@using Realms
-@inject RealmConfiguration realmConfig
 @inject NavigationManager navigationManager
 @rendermode InteractiveServer
 
 @code {
 
-    [Parameter] public JournalEntry Entry { get; set; } = null!;
-    [Parameter] public EventCallback OnEntryDeleted { get; set; }
+    private long steps = 1800;
 
-    private Realm realm => Realm.GetInstance(realmConfig);
+    [Parameter]
+    public JournalEntry Entry { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnEntryDeleted { get; set; }
 
     private bool popupOpen;
 
     private async Task delete()
     {
-        await realm.WriteAsync(() => realm.Remove(Entry));
+        JournalEntry.DB_COLLECTION.Delete(Entry.Id);
         popupOpen = false;
         await OnEntryDeleted.InvokeAsync();
     }
@@ -25,26 +27,114 @@
     {
         navigationManager.NavigateTo($"/journal/new?edit={Entry.Id.ToString()}");
     }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender) return;
+        var journalUser = JournalUser.DB_COLLECTION.FindOrNull(Entry.OwnerDiscordId);
+
+        if (journalUser == null) return;
+
+        var midnightDate = DateTimeOffset.FromUnixTimeMilliseconds(Entry.Time).Date;
+        long midnightTimestamp = new DateTimeOffset(midnightDate, TimeSpan.Zero).ToUnixTimeMilliseconds();
+
+        var hasHealthSync = journalUser.HealthSync.TryGetValue(midnightTimestamp.ToString(), out var sync);
+        var healthSync = hasHealthSync ? sync : null;
+
+        if (healthSync == null) return;
+
+        steps = healthSync.Steps;
+        StateHasChanged();
+    }
 }
 
-<li>
-    <div class="max" style="overflow: hidden; text-overflow: clip">
-        <h6 class="small">@Entry.Title</h6>
-        <div style="opacity: 70%">@Entry.Time.ToDateTime().ToProperlyFormatted()</div>
-    </div>
-    <a class="button" href="/journal/entry/@(Entry.Id.ToString())">View</a>
-    <button class="transparent square" @onclick="()=> { edit(); }">
-        <i>(@Icons.EDIT)</i>
-    </button>
-    <button class="transparent square" @onclick="() => { popupOpen = true; }">
-        <i>(@Icons.DELETE)</i>
-    </button>
+<article class="border entry-card">
+    <div class="entry-content">
+        <div class="entry-main">
+            <h6 class="entry-date">
+                @DateTimeOffset.FromUnixTimeMilliseconds(Entry.Time).ToProperlyFormatted()
+            </h6>
 
-</li>
+            <hr class="entry-divider"/>
+
+            <div class="chip-row">
+                <button class="chip round fill"><i class="primary-text">@Icons.RATING</i>
+                    <span>@Entry.MentalHealthTrackerEntry.OverallDayRating/10</span></button>
+                <button class="chip round"><i>@Icons.BEDTIME</i>
+                    <span>@Entry.MentalHealthTrackerEntry.HoursSlept h</span></button>
+                <button class="chip round"><i>@Icons.HEALTH_STEPS</i>
+                    <span>@steps.ToString("#,##0", CultureInfo.InvariantCulture)</span></button>
+                <button class="chip round"><i>@Icons.GetForWeatherType(Entry.Weather)</i>
+                    <span>@Entry.Weather.GetDisplayName()</span></button>
+            </div>
+        </div>
+
+        <nav class="entry-actions">
+            <a class="button" href="/journal/entry/@Entry.Id">View</a>
+
+            <button class="transparent circle" @onclick="edit">
+                <i>@Icons.EDIT</i>
+            </button>
+
+            <button class="transparent circle" @onclick="() => popupOpen = true">
+                <i>@Icons.DELETE</i>
+            </button>
+        </nav>
+    </div>
+</article>
+
+<style>
+    .entry-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .entry-main {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .entry-actions {
+        display: flex;
+        align-items: center;
+        gap: .25rem;
+        flex-shrink: 0;
+    }
+
+    .entry-date {
+        margin: 0;
+        font-weight: 500;
+    }
+
+    .entry-divider {
+        margin: .5rem 0 .75rem;
+        border: 0;
+        border-top: 1px solid #49454E;
+        opacity: .35;
+    }
+
+    .entry-card h5 {
+        margin: 0 0 0.6rem 0;
+    }
+
+    .entry-card .chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .entry-card .chip {
+        margin: 0;
+    }
+</style>
 
 <dialog class="@(popupOpen ? "active" : "")">
     <h5>Delete</h5>
-    <div>Are you sure you want to delete @Entry.Title from @Entry.Time.ToDateTime().ToProperlyFormatted()</div>
+    <div>Are you sure you want to
+        delete @Entry.Title from @DateTimeOffset.FromUnixTimeMilliseconds(Entry.Time).ToProperlyFormatted()</div>
     <nav class="right-align no-space">
         <button class="transparent link" @onclick="() => { popupOpen = false; }">Cancel</button>
         <button class="transparent link" @onclick="delete">Confirm</button>

@@ -1,8 +1,5 @@
 @using global::Journal.Util
-
-@code {
-
-}
+@using Journal.Endpoints
 
 <div class="height-3"></div>
 <article class="medium middle-align center-align">
@@ -12,7 +9,7 @@
         <p>Click the button below to login.</p>
         <div class="space"></div>
         <nav class="center-align">
-            <a class="button" href="/login">
+            <a class="button" href="@AuthEndpoints.ROUTE_LOGIN">
                 <i>@(Icons.LOGIN)</i>
                 Login via discord
             </a>
