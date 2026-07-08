@@ -19,7 +19,7 @@
     <legend>@ContainerName</legend>
     <nav class="vertical">
 
-        @foreach (var item in Extensions.GetValuesWithDisplayNames<TEnum>())
+        @foreach (var item in ExtraCodecs.GetValuesWithDisplayNames<TEnum>())
         {
             <label class="radio">
                 <input type="radio"

@@ -5,10 +5,11 @@ using System.Text.Json;
 using Codon.Codec;
 using Codon.Codec.Json;
 
-namespace Journal.API;
+namespace Journal.Integrations;
 
 public static class VisualCrossingWeatherApi
 {
+    private static readonly HttpClient client = new();
     private const string api_endpoint = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline";
 
     public static async Task<WeatherReportData.Day?> GetWeatherData(double latitude, double longitude, long date, string apiKey)
@@ -18,7 +19,6 @@ public static class VisualCrossingWeatherApi
 
         var uri = $"{api_endpoint}/{latitude},{longitude}?unitGroup=metric&include=days&contentType=json&key={apiKey}";
 
-        var client = new HttpClient();
         var message = new HttpRequestMessage(HttpMethod.Get, uri);
 
         var response = await client.SendAsync(message);
@@ -28,7 +28,6 @@ public static class VisualCrossingWeatherApi
 
 
         var today = decoded.Days.FirstOrDefault(d => d.DateTime == formattedDate);
-        Console.WriteLine(today);
 
         return today;
     }
@@ -39,13 +38,11 @@ public static class VisualCrossingWeatherApi
         List<WeatherReportData.Day> Days
     )
     {
-        public static readonly StructCodec<WeatherReportData> CODEC = StructCodec.Of
-        (
-            "queryCost", Codecs.INT, d => d.QueryCost,
-            "timezone", Codecs.STRING, d => d.TimeZone,
-            "days", Day.CODEC.List(), d => d.Days,
-            (queryCost, timezone, days) => new WeatherReportData(queryCost, timezone, days)
-        );
+        public static readonly StructCodec<WeatherReportData> CODEC = StructCodec.For<WeatherReportData>()
+            .Field("queryCost", Codecs.INT, d => d.QueryCost)
+            .Field("timezone", Codecs.STRING, d => d.TimeZone)
+            .Field("days", Day.CODEC.List(), d => d.Days)
+            .Build((queryCost, timezone, days) => new WeatherReportData(queryCost, timezone, days));
 
         public record Day(
             string DateTime,
@@ -58,18 +55,16 @@ public static class VisualCrossingWeatherApi
             string Icon
         )
         {
-            public static readonly StructCodec<Day> CODEC = StructCodec.Of
-            (
-                "datetime", Codecs.STRING, d => d.DateTime,
-                "datetimeEpoch", Codecs.LONG, d => d.DateTimeEpoch,
-                "tempmax", Codecs.DOUBLE, d => d.TempMax,
-                "tempmin", Codecs.DOUBLE, d => d.TempMin,
-                "temp", Codecs.DOUBLE, d => d.TempAvg,
-                "conditions", Codecs.STRING, d => d.Conditions,
-                "description", Codecs.STRING, d => d.Description,
-                "icon", Codecs.STRING, d => d.Icon,
-                (datetime, epoch, tempmax, tempmin, tempavg, conditions, desc, icon) => new Day(datetime, epoch, tempmax, tempmin, tempavg, conditions, desc, icon)
-            );
+            public static readonly StructCodec<Day> CODEC = StructCodec.For<Day>()
+                .Field("datetime", Codecs.STRING, d => d.DateTime)
+                .Field("datetimeEpoch", Codecs.LONG, d => d.DateTimeEpoch)
+                .Field("tempmax", Codecs.DOUBLE, d => d.TempMax)
+                .Field("tempmin", Codecs.DOUBLE, d => d.TempMin)
+                .Field("temp", Codecs.DOUBLE, d => d.TempAvg)
+                .Field("conditions", Codecs.STRING, d => d.Conditions)
+                .Field("description", Codecs.STRING, d => d.Description)
+                .Field("icon", Codecs.STRING, d => d.Icon)
+                .Build((datetime, epoch, tempmax, tempmin, tempavg, conditions, desc, icon) => new Day(datetime, epoch, tempmax, tempmin, tempavg, conditions, desc, icon));
         }
     };
 }

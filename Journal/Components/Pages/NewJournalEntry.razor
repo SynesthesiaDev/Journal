@@ -1,10 +1,8 @@
-@using global::Journal.API
 @using global::Journal.Database.Models
 @using global::Journal.Settings
 @using global::Journal.Util
+@using Journal.Integrations
 @using Microsoft.AspNetCore.WebUtilities
-@using Realms
-@inject RealmConfiguration realmConfig
 @inject AuthenticationStateProvider authStateProvider
 @inject NavigationManager navigationManager
 @rendermode InteractiveServer
@@ -19,18 +17,18 @@
     private string title = DateTimeOffset.Now.ToProperlyFormatted();
     private string text = string.Empty;
 
-    private async Task<AuthenticationState> getAuthState() => await authStateProvider.GetAuthenticationStateAsync();
-    private async Task<RealmUser> getRealmUser() => RealmUtil.GetRealmUser(await getAuthState(), realmAccess);
-    private async Task<List<JournalEntry>> getEntries() => RealmUtil.GetJournalEntries(await getAuthState(), realmAccess);
-
     private bool alreadyHasEntryForSelectedDay;
     private DateTimeOffset selectedDate = DateTimeOffset.Now.Date;
     private double sleepStartTonight = 3;
     private double sleepEndThisMorning = 1;
-    private double moodRating = 1;
-    private double productivityRating = 1;
-    private double overallDayRating = 1;
+    private int moodRating = 1;
+    private int productivityRating = 1;
+    private int overallDayRating = 1;
     private readonly List<UserDefinedTag> userDefinedTags = [];
+
+    private JournalUser journalUser = null!;
+
+    private List<JournalEntry> journalEntries = [];
 
     private bool creating;
 
@@ -40,26 +38,29 @@
 
     private JournalEntry? editingEntry;
 
-    private bool isEditingExistingEntry => editingEntry != null;
+    private AuthenticationState authenticationState = null!;
 
-    private Realm realmAccess => Realm.GetInstance(realmConfig);
+    private bool isEditingExistingEntry => editingEntry != null;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
 
+        authenticationState = await authStateProvider.GetAuthenticationStateAsync();
+        journalUser = JournalUser.DB_COLLECTION.Find(DatabaseUtils.GetDiscordId(authenticationState));
+
         var uri = navigationManager.ToAbsoluteUri(navigationManager.Uri);
-        await updateDateState();
+        updateDateState();
 
         if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("edit", out var editId))
         {
             var parsed = Guid.TryParse(editId!, out var guid);
             if (!parsed) return;
 
-            var entries = await getEntries();
-            if (entries.Any(e => e.Id == guid))
+            journalEntries = journalUser.ResolveJournalEntries();
+            if (journalEntries.Any(e => e.Id == guid))
             {
-                editingEntry = entries.First(e => e.Id == guid);
+                editingEntry = journalEntries.First(e => e.Id == guid);
                 entryGuid = guid;
 
                 selectedDate = DateTimeOffset.FromUnixTimeMilliseconds(editingEntry.Time);
@@ -77,28 +78,27 @@
                 userDefinedTags.Clear();
                 editingEntry.MentalHealthTrackerEntry.UserDefinedTags.DistinctBy(t => t.Id).ToList().ForEach(tag =>
                 {
-                    userDefinedTags.Add(tag.Freeze());
+                    userDefinedTags.Add(tag);
                 });
 
                 StateHasChanged();
-                await updateDateState();
+                updateDateState();
             }
         }
 
-        await updateDateState();
+        updateDateState();
     }
 
     private void handleDateChange(ChangeEventArgs e)
     {
         if (!DateTimeOffset.TryParse(e.Value?.ToString(), out var newDate)) return;
         selectedDate = newDate.Date;
-        _ = updateDateState();
+        updateDateState();
     }
 
-    private async Task updateDateState()
+    private void updateDateState()
     {
-        var entries = await getEntries();
-        alreadyHasEntryForSelectedDay = entries.Any(s => s.Time.ToDateTime().Date == selectedDate.Date);
+        alreadyHasEntryForSelectedDay = journalEntries.Any(s => s.Time.ToDateTime().Date == selectedDate.Date);
         StateHasChanged();
     }
 
@@ -112,6 +112,12 @@
         var hour = Math.Floor(value);
         var minutes = value % 1 == 0 ? "00" : "30";
         return $"{hour}:{minutes}";
+    }
+
+    private async Task yesterday()
+    {
+        selectedDate = DateTimeOffset.Now.AddDays(-1);
+        title = selectedDate.ToProperlyFormatted();
     }
 
     private async Task createEntry()
@@ -136,64 +142,57 @@
 
         if (isEditingExistingEntry)
         {
-            var existingEntry = editingEntry!;
-
-            await realmAccess.WriteAsync(() =>
+            var existingEntry = editingEntry! with
             {
-                existingEntry.Time = timeMilliseconds;
-                existingEntry.Title = title;
-                existingEntry.Text = text;
-                existingEntry.Sunrise = sunriseData.Item1;
-                existingEntry.Sunset = sunriseData.Item2;
-                existingEntry.WeatherId = (int)TimeWeatherUtils.MapToWeatherType(weatherIcon);
-                existingEntry.MentalHealthTrackerEntry = new MentalHealthTrackerEntry
-                {
-                    MotivationTag = motivationTag,
-                    SocialTag = socialTag,
-                    StressTag = stressTag,
-                    HoursSlept = calculateDuration(),
-                    MoodRating = (int)moodRating,
-                    ProductivityRating = (int)productivityRating,
-                    OverallDayRating = (int)overallDayRating,
-                    SleepStart = sleepStartTonight,
-                    SleepEnd = sleepEndThisMorning,
-                };
-
-                userDefinedTags.ForEach(existingEntry.MentalHealthTrackerEntry.UserDefinedTags.Add);
-            });
-
-            await realmAccess.WriteAsync(() => realmAccess.Add(existingEntry));
-            navigationManager.NavigateTo(Routes.JournalEntry(existingEntry));
-        }
-        else
-        {
-            var entry = new JournalEntry
-            {
-                Id = entryGuid,
                 Time = timeMilliseconds,
-                OwnerDiscordId = (await getRealmUser()).DiscordId,
                 Title = title,
                 Text = text,
                 Sunrise = sunriseData.Item1,
                 Sunset = sunriseData.Item2,
-                WeatherId = (int)TimeWeatherUtils.MapToWeatherType(weatherIcon),
-                MentalHealthTrackerEntry = new MentalHealthTrackerEntry
-                {
-                    MotivationTag = motivationTag,
-                    SocialTag = socialTag,
-                    StressTag = stressTag,
-                    HoursSlept = calculateDuration(),
-                    MoodRating = (int)moodRating,
-                    ProductivityRating = (int)productivityRating,
-                    OverallDayRating = (int)overallDayRating,
-                    SleepStart = sleepStartTonight,
-                    SleepEnd = sleepEndThisMorning,
-                }
+                Weather = TimeWeatherUtils.MapToWeatherType(weatherIcon),
+                MentalHealthTrackerEntry = new MentalHealthTrackerEntry(
+                    MotivationTag: motivationTag,
+                    SocialTag: socialTag,
+                    StressTag: stressTag,
+                    SleepStart: sleepStartTonight,
+                    SleepEnd: sleepEndThisMorning,
+                    HoursSlept: calculateDuration(),
+                    UserDefinedTags: userDefinedTags,
+                    OverallDayRating: overallDayRating,
+                    MoodRating: moodRating,
+                    ProductivityRating: productivityRating)
             };
 
-            userDefinedTags.ForEach(entry.MentalHealthTrackerEntry.UserDefinedTags.Add);
-            await realmAccess.WriteAsync(() => realmAccess.Add(entry));
-            navigationManager.NavigateTo(Routes.JournalEntry(entry));
+            JournalEntry.DB_COLLECTION.Insert(entryGuid, existingEntry);
+            navigationManager.NavigateTo(Routes.ForJournalEntry(existingEntry));
+        }
+        else
+        {
+            var newEntry = new JournalEntry(
+                Id: entryGuid,
+                OwnerDiscordId: journalUser.DiscordId,
+                Time: timeMilliseconds,
+                Title: title,
+                Text: text,
+                Sunrise: sunriseData.Item1,
+                Sunset: sunriseData.Item2,
+                Weather: TimeWeatherUtils.MapToWeatherType(weatherIcon),
+                MentalHealthTrackerEntry: new MentalHealthTrackerEntry(
+                    MotivationTag: motivationTag,
+                    SocialTag: socialTag,
+                    StressTag: stressTag,
+                    SleepStart: sleepStartTonight,
+                    SleepEnd: sleepEndThisMorning,
+                    HoursSlept: calculateDuration(),
+                    UserDefinedTags: userDefinedTags,
+                    OverallDayRating: overallDayRating,
+                    MoodRating: moodRating,
+                    ProductivityRating: productivityRating));
+
+            JournalEntry.DB_COLLECTION.Insert(entryGuid, newEntry);
+            journalUser.JournalEntries.Add(entryGuid);
+            JournalUser.DB_COLLECTION.Insert(journalUser.DiscordId, journalUser);
+            navigationManager.NavigateTo(Routes.ForJournalEntry(newEntry));
         }
     }
 
@@ -203,10 +202,10 @@
 
     <div class="height-3"></div>
 
-    <div class="field label border">
-        <textarea @bind="title" @bind:event="oninput"></textarea>
-        <label>Title</label>
-    </div>
+    <button class="border" @onclick="yesterday">
+        <i>@Icons.BACK</i>
+        <span>Yesterday</span>
+    </button>
 
     <div class="field label border @(alreadyHasEntryForSelectedDay && !isEditingExistingEntry ? "invalid" : "")">
         <input type="date" value="@selectedDate.ToString("yyyy-MM-dd")" @onchange="handleDateChange">

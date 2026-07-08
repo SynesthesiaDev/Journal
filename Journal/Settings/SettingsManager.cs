@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Codon.Codec.Json;
 using Journal.Util;
+using Serilog;
 
 namespace Journal.Settings;
 
@@ -19,7 +20,7 @@ public static class SettingsManager
     {
         if (!File.Exists(CONFIG_PATH))
         {
-            Console.WriteLine("config does not exist");
+            Log.Information("Config does not exists, creating one..");
             File.Create(CONFIG_PATH).Close();
             var encoded = JournalSettings.VERSIONED_CODEC.Encode(JsonTranscoder.INSTANCE, default_settings);
             File.WriteAllText(CONFIG_PATH, JsonUtil.Prettified(encoded));
@@ -27,7 +28,6 @@ public static class SettingsManager
             fileLoaded = true;
             currentConfig = default_settings;
 
-            Console.WriteLine("Journal settings not found, creating new one!");
             return;
         }
 
@@ -35,26 +35,25 @@ public static class SettingsManager
         try
         {
             var decoded = JournalSettings.VERSIONED_CODEC.Decode(JsonTranscoder.INSTANCE, JsonDocument.Parse(json).RootElement);
-            if (decoded.RequiresAuth && decoded.DiscordAuthSettings.IsMissing)
+            if (decoded is { RequiresAuth: true, DiscordAuthSettings.IsMissing: true })
             {
                 throw new InvalidOperationException("'discord_auth_settings' must be present if 'requires_auth' is enabled");
             }
 
             fileLoaded = true;
             currentConfig = decoded;
-            Console.WriteLine("Journal settings loaded!");
+            Log.Information("Successfully parsed settings file!");
 
             if (JournalSettings.DidMigrate)
             {
                 var encoded = JournalSettings.VERSIONED_CODEC.Encode(JsonTranscoder.INSTANCE, default_settings);
                 File.WriteAllText(CONFIG_PATH, JsonUtil.Prettified(encoded));
-                Console.WriteLine("Journal settings re-saved because of schema migration!");
+                Log.Information("Journal settings were re-saved because of schema migration!");
             }
         }
         catch (Exception e)
         {
-            Console.WriteLine("Error while parsing 'settings.json': ");
-            Console.WriteLine(e);
+            Log.Error(e, "Failed to parse settings file");
             throw;
         }
     }

@@ -11,7 +11,7 @@ public static class Routes
     public const string EXPORT_DATA = "/export";
     public const string SETTINGS = "/settings";
 
-    public static string JournalEntry(JournalEntry entry)
+    public static string ForJournalEntry(JournalEntry entry)
     {
         return $"/journal/entry/{entry.Id.ToString()}";
     }

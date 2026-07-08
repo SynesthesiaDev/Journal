@@ -1,54 +1,37 @@
 // Copyright (c) 2026 SynesthesiaDev <synesthesiadev@proton.me>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using Codon.Binary;
 using Codon.Codec;
 using Journal.Util;
-using Realms;
 
 namespace Journal.Database.Models;
 
-public class HealthSync : EmbeddedObject
+public record HealthSync(long Steps, double DistanceKm, double Calories, double HeartPoints, double? Height, double? Weight, int MoveMinutes, long Date)
 {
-    public long Steps { get; set; }
-    public double DistanceKm { get; set; }
-    public double Calories { get; set; }
-    public double HeartPoints { get; set; }
-    public double? Height { get; set; }
-    public double? Weight { get; set; }
-    public int MoveMinutes { get; set; }
-    public long Date { get; set; }
+    public static readonly Codec<HealthSync> CODEC = StructCodec.For<HealthSync>()
+        .Field("Steps", Codecs.LONG, c => c.Steps)
+        .Field("DistanceKm", Codecs.DOUBLE, c => c.DistanceKm)
+        .Field("Calories", Codecs.DOUBLE, c => c.Calories)
+        .Field("HeartPoints", Codecs.DOUBLE, c => c.HeartPoints)
+        .Field("Height", Codecs.DOUBLE.Optional(), c => ExtraCodecs.OfOrEmptyStruct(c.Height))
+        .Field("Weight", Codecs.DOUBLE.Optional(), c => ExtraCodecs.OfOrEmptyStruct(c.Weight))
+        .Field("MoveMinutes", Codecs.INT, c => c.MoveMinutes)
+        .Field("Date", Codecs.LONG, c => c.Date)
+        .Build((steps, distance, calories, heartPoints, height, weight, moveMinutes, date) =>
+            new HealthSync(steps, distance, calories, heartPoints, height.Value, weight.Value, moveMinutes, date));
 
-    // Realm needs empty constructor
-    public HealthSync()
-    {
-
-    }
-
-    public HealthSync(long steps, double distanceKm, double calories, double heartPoints, double? height, double? weight, int moveMinutes, long date)
-    {
-        Steps = steps;
-        DistanceKm = distanceKm;
-        Calories = calories;
-        HeartPoints = heartPoints;
-        Height = height;
-        Weight = weight;
-        MoveMinutes = moveMinutes;
-        Date = date;
-    }
-
-    public static readonly Codec<HealthSync> CODEC = StructCodec.Of
-    (
-        "steps", Codecs.LONG, c => c.Steps,
-        "distanceKm", Codecs.DOUBLE, c => c.DistanceKm,
-        "calories", Codecs.DOUBLE, c => c.Calories,
-        "heartPoints", Codecs.DOUBLE, c => c.HeartPoints,
-        "height", Codecs.DOUBLE.Optional(), c => Extensions.OfOrEmptyStruct(c.Height),
-        "weight", Codecs.DOUBLE.Optional(), c => Extensions.OfOrEmptyStruct(c.Weight),
-        "moveMinutes", Codecs.INT, c => c.MoveMinutes,
-        "date", Codecs.LONG, c => c.Date,
-        (steps, distance, calories, heartPoints, height, weight, moveMinutes, date) =>
-            new HealthSync(steps, distance, calories, heartPoints, height.Value, weight.Value, moveMinutes, date)
-    );
+    public static readonly IBinaryCodec<HealthSync> BINARY_CODEC = BinaryCodecs.For<HealthSync>()
+        .Field(BinaryCodecs.LONG, c => c.Steps)
+        .Field(BinaryCodecs.DOUBLE, c => c.DistanceKm)
+        .Field(BinaryCodecs.DOUBLE, c => c.Calories)
+        .Field(BinaryCodecs.DOUBLE, c => c.HeartPoints)
+        .Field(BinaryCodecs.DOUBLE.Optional(), c => ExtraCodecs.OfOrEmptyStruct(c.Height))
+        .Field(BinaryCodecs.DOUBLE.Optional(), c => ExtraCodecs.OfOrEmptyStruct(c.Weight))
+        .Field(BinaryCodecs.INT, c => c.MoveMinutes)
+        .Field(BinaryCodecs.LONG, c => c.Date)
+        .Build((steps, distance, calories, heartPoints, height, weight, moveMinutes, date) =>
+            new HealthSync(steps, distance, calories, heartPoints, height.Value, weight.Value, moveMinutes, date));
 
     public override string ToString()
     {
