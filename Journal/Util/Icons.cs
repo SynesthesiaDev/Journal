@@ -8,6 +8,7 @@ public static class Icons
 
     public const string HOME = "home";
     public const string BEDTIME = "bedtime";
+    public const string SLEEP = "hotel";
     public const string SUNRISE = "backlight_high";
     public const string WEATHER = "cloud";
     public const string NAV_BAR_CLOSE = "menu_open";

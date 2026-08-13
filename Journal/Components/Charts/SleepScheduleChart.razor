@@ -1,0 +1,147 @@
+@using ApexCharts
+@using Journal.Database.Models
+@using Journal.Util
+
+@code {
+    private List<JournalEntry> entries = [];
+
+    private string formatEntryDate(JournalEntry entry) => DateTimeOffset.FromUnixTimeMilliseconds(entry.Time).ToString("dd MMM");
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        base.OnAfterRender(firstRender);
+        if (!firstRender) return;
+
+        entries = JournalEntry.DB_COLLECTION.FindAll()
+            .Select(e => e.Value)
+            .OrderBy(e => e.Time)
+            .ToList();
+
+        StateHasChanged();
+    }
+
+    private readonly ApexChartOptions<JournalEntry> options = new()
+    {
+        Chart = new Chart
+        {
+            Background = "transparent",
+            Toolbar = new Toolbar { Show = false },
+            Animations = new Animations { Enabled = true }
+        },
+        Theme = new Theme { Mode = Mode.Dark },
+        Colors = ["#cfbcff"],
+        PlotOptions = new PlotOptions
+        {
+            Bar = new PlotOptionsBar
+            {
+                ColumnWidth = "35%",
+                BorderRadius = 4
+            }
+        },
+        Fill = new Fill
+        {
+            Type = new List<FillType> { FillType.Solid },
+        },
+        Grid = new Grid
+        {
+            BorderColor = "#2a2f3a",
+            StrokeDashArray = 4,
+            Yaxis = new GridYAxis { Lines = new Lines { Show = true } },
+            Xaxis = new GridXAxis { Lines = new Lines { Show = false } }
+        },
+        DataLabels = new DataLabels { Enabled = true },
+        Xaxis = new XAxis
+        {
+            Type = XAxisType.Category,
+            Labels = new XAxisLabels { Format = "dd MMM" },
+            AxisBorder = new AxisBorder { Show = false },
+            AxisTicks = new AxisTicks { Show = false },
+        },
+        Yaxis =
+        [
+            new()
+            {
+                Min = 0,
+                Max = 24,
+                Labels = new YAxisLabels
+                {
+                    Formatter = @"function (val) {
+                        var hours = Math.floor(val);
+                        var minutes = Math.round((val - hours) * 60);
+                        var period = hours >= 12 ? 'PM' : 'AM';
+                        var h = hours % 12;
+                        if (h === 0) h = 12;
+                        return h + ':' + (minutes < 10 ? '0' : '') + minutes + ' ' + period;
+                    }"
+                }
+            }
+        ],
+        Tooltip = new Tooltip { Theme = Mode.Dark }
+    };
+
+    private static double circularMeanHours(IEnumerable<double> hours)
+    {
+        double sinSum = 0, cosSum = 0;
+        int count = 0;
+
+        foreach (var h in hours)
+        {
+            double angle = h / 24.0 * 2 * Math.PI;
+            sinSum += Math.Sin(angle);
+            cosSum += Math.Cos(angle);
+            count++;
+        }
+
+        if (count == 0) return 0;
+
+        double avgAngle = Math.Atan2(sinSum / count, cosSum / count);
+        double avgHours = avgAngle / (2 * Math.PI) * 24.0;
+
+        return avgHours < 0 ? avgHours + 24 : avgHours;
+    }
+
+    private static string formatClockTime(double hours)
+    {
+        var normalized = ((hours % 24) + 24) % 24;
+        int h24 = (int)normalized;
+        int m = (int)Math.Round((normalized - h24) * 60);
+        if (m == 60) { m = 0; h24 = (h24 + 1) % 24; }
+
+        string period = h24 >= 12 ? "PM" : "AM";
+        int h12 = h24 % 12;
+        if (h12 == 0) h12 = 12;
+
+        return $"{h12}:{m:D2} {period}";
+    }
+
+}
+
+<ChartCompoonent Name="Sleep Schedule">
+    <ApexChart TItem="JournalEntry"
+               Height="400"
+               Options="options">
+
+        <ApexRangeSeries TItem="JournalEntry"
+                         Items="entries"
+                         Name="Sleep"
+                         XValue="formatEntryDate"
+                         YMinValue="e => (decimal)e.MentalHealthTrackerEntry.SleepStart"
+                         YMaxValue="e => (decimal)e.MentalHealthTrackerEntry.SleepEnd"
+                         ShowDataLabels="false"/>
+
+    </ApexChart>
+
+    <article class="border surface">
+
+        <div style="display: inline-flex; gap: 5px;"><i>@Icons.BEDTIME</i>
+            Average fall asleep time: <b>@formatClockTime(circularMeanHours(entries.Select(e => e.MentalHealthTrackerEntry.SleepStart)))</b>
+        </div>
+
+        <br/>
+        <div style="display: inline-flex; gap: 5px;"><i>@Icons.SUNRISE</i>
+            Average wake-up time: <b>@formatClockTime(circularMeanHours(entries.Select(e => e.MentalHealthTrackerEntry.SleepEnd)))</b>
+        </div>
+
+    </article>
+
+</ChartCompoonent>

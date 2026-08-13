@@ -1,0 +1,106 @@
+@using ApexCharts
+@using Journal.Database.Models
+@using Journal.Util
+
+@code {
+
+    private List<PlotPoint> hoursSlept = [];
+    private List<JournalEntry> entries = [];
+
+
+    private string formatEntryDate(JournalEntry entry) => DateTimeOffset.FromUnixTimeMilliseconds(entry.Time).ToString("dd MMM");
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        base.OnAfterRender(firstRender);
+        if (!firstRender) return;
+
+        entries = JournalEntry.DB_COLLECTION.FindAll()
+            .Select(e => e.Value)
+            .OrderBy(e => e.Time)
+            .ToList();
+
+        hoursSlept = entries.Select(e => new PlotPoint(e.MentalHealthTrackerEntry.HoursSlept, formatEntryDate(e))).ToList();
+
+        StateHasChanged();
+    }
+
+    private record PlotPoint(double Value, string Label);
+
+    private readonly ApexChartOptions<PlotPoint> options = new()
+    {
+        Chart = new Chart
+        {
+            Background = "transparent",
+            Toolbar = new Toolbar { Show = false },
+            Animations = new Animations { Enabled = true },
+            Zoom = new Zoom { Enabled = false },
+        },
+
+        Stroke = new Stroke
+        {
+            Curve = Curve.Smooth,
+            Width = 3
+        },
+
+        PlotOptions = new PlotOptions
+        {
+            Bar = new PlotOptionsBar
+            {
+                ColumnWidth = "35%",
+                BorderRadius = 4
+            }
+        },
+
+        Theme = new Theme { Mode = Mode.Dark },
+        Colors = ["#cfbcff"],
+
+        Fill = new Fill
+        {
+            Type = new List<FillType> { FillType.Solid },
+        },
+        Grid = new Grid
+        {
+            BorderColor = "#2a2f3a",
+            StrokeDashArray = 4,
+            Yaxis = new GridYAxis { Lines = new Lines { Show = true } },
+            Xaxis = new GridXAxis { Lines = new Lines { Show = false } }
+        },
+        DataLabels = new DataLabels { Enabled = false },
+        Tooltip = new Tooltip { Theme = Mode.Dark }
+    };
+
+    private static string formatHours(double hours)
+    {
+        var normalized = ((hours % 24) + 24) % 24;
+        int h = (int)normalized;
+        int m = (int)Math.Round((normalized - h) * 60);
+
+        if (m == 60) { m = 0; h = (h + 1) % 24; }
+
+        return $"{h}h {m}m";
+    }
+
+}
+
+<ChartCompoonent Name="Hours Slept">
+    <ApexChart TItem="PlotPoint" Options="options">
+
+        <ApexPointSeries TItem="PlotPoint"
+                         Items="hoursSlept"
+                         Name="Hours Slept"
+                         SeriesType="SeriesType.Line"
+                         XValue="e => e.Label"
+                         YValue="e => (decimal?)e.Value" />
+
+    </ApexChart>
+
+
+    <article class="border surface">
+
+        <div style="display: inline-flex; gap: 5px;"><i>@Icons.SLEEP</i>
+            Average hours slept: <b>@formatHours(MathUtils.CircularMeanHours(entries.Select(e => e.MentalHealthTrackerEntry.HoursSlept)))</b>
+        </div>
+
+    </article>
+</ChartCompoonent>

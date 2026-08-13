@@ -1,0 +1,124 @@
+@using ApexCharts
+@using Journal.Database.Models
+@using Journal.Util
+
+@code {
+
+    private List<PlotPoint> overallDayRating = [];
+    private List<PlotPoint> moodRating = [];
+    private List<PlotPoint> productivityRating = [];
+    private List<JournalEntry> entries = [];
+
+    private static string formatEntryDate(JournalEntry entry) => DateTimeOffset.FromUnixTimeMilliseconds(entry.Time).ToString("dd MMM");
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        base.OnAfterRender(firstRender);
+        if (!firstRender) return;
+
+        entries = JournalEntry.DB_COLLECTION.FindAll()
+            .Select(e => e.Value)
+            .OrderBy(e => e.Time)
+            .ToList();
+
+        overallDayRating = entries.Select(e => new PlotPoint(e.MentalHealthTrackerEntry.OverallDayRating, formatEntryDate(e))).ToList();
+        moodRating = entries.Select(e => new PlotPoint(e.MentalHealthTrackerEntry.MoodRating, formatEntryDate(e))).ToList();
+        productivityRating = entries.Select(e => new PlotPoint(e.MentalHealthTrackerEntry.ProductivityRating, formatEntryDate(e))).ToList();
+
+        StateHasChanged();
+    }
+
+    private record PlotPoint(int Value, string Label);
+
+    private readonly ApexChartOptions<PlotPoint> options = new()
+    {
+        Chart = new Chart
+        {
+            Background = "transparent",
+            Toolbar = new Toolbar { Show = false },
+            Animations = new Animations { Enabled = true },
+            Zoom = new Zoom { Enabled = false },
+        },
+
+        Stroke = new Stroke
+        {
+            Curve = Curve.Smooth,
+            Width = 3
+        },
+
+        PlotOptions = new PlotOptions
+        {
+            Bar = new PlotOptionsBar
+            {
+                ColumnWidth = "35%",
+                BorderRadius = 4
+            }
+        },
+
+        Theme = new Theme { Mode = Mode.Dark },
+        Colors = ["#cfbcff", "#7ee8c7", "#ffb86c"],
+
+        Fill = new Fill
+        {
+            Type = new List<FillType> { FillType.Solid },
+        },
+        Grid = new Grid
+        {
+            BorderColor = "#2a2f3a",
+            StrokeDashArray = 4,
+            Yaxis = new GridYAxis { Lines = new Lines { Show = true } },
+            Xaxis = new GridXAxis { Lines = new Lines { Show = false } }
+        },
+        DataLabels = new DataLabels { Enabled = false },
+        Tooltip = new Tooltip { Theme = Mode.Dark }
+    };
+
+}
+
+<ChartCompoonent Name="Mental Health">
+
+    <ApexChart TItem="PlotPoint" Options="options">
+
+        <ApexPointSeries TItem="PlotPoint"
+                         Items="overallDayRating"
+                         Name="Overall"
+                         SeriesType="SeriesType.Line"
+                         XValue="e => e.Label"
+                         YValue="e => e.Value"/>
+
+        <ApexPointSeries TItem="PlotPoint"
+                         Items="moodRating"
+                         Name="Mood"
+                         SeriesType="SeriesType.Line"
+                         XValue="e => e.Label"
+                         YValue="e => e.Value"/>
+
+        <ApexPointSeries TItem="PlotPoint"
+                         Items="productivityRating"
+                         Name="Productivity"
+                         SeriesType="SeriesType.Line"
+                         XValue="e => e.Label"
+                         YValue="e => e.Value"/>
+
+    </ApexChart>
+
+    <article class="border surface">
+
+        <div style="display: inline-flex; gap: 5px;"><i>@Icons.RATING</i>
+            Average day rating:
+            <b>@MathUtils.Average(entries.Select(e => e.MentalHealthTrackerEntry.OverallDayRating))/10</b>
+        </div>
+
+        <br/>
+        <div style="display: inline-flex; gap: 5px;"><i>@Icons.MOOD_RATING</i>
+            Average mood: <b>@MathUtils.Average(entries.Select(e => e.MentalHealthTrackerEntry.MoodRating))/10</b>
+        </div>
+
+        <br/>
+        <div style="display: inline-flex; gap: 5px;"><i>@Icons.PRODUCTIVITY_RATING</i>
+            Average productivity: <b>@MathUtils.Average(entries.Select(e => e.MentalHealthTrackerEntry.ProductivityRating))/10</b>
+        </div>
+
+    </article>
+
+</ChartCompoonent>

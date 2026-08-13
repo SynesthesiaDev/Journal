@@ -7,7 +7,7 @@ public static class Routes
     public const string HOME = "/";
     public const string JOURNAL = "/journal";
     public const string JOURNAL_NEW_ENTRY = "/journal/new";
-    public const string MENTAL_HEALTH_TRACKER = "/tracker";
+    public const string TRENDS = "/trends";
     public const string EXPORT_DATA = "/export";
     public const string SETTINGS = "/settings";
 

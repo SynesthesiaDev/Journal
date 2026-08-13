@@ -1,0 +1,16 @@
+
+@code {
+
+    [Parameter]
+    public string Name { get; set; } = string.Empty;
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+}
+
+
+<article class="border">
+    <h5>@Name</h5>
+    @ChildContent
+</article>
