@@ -46,6 +46,8 @@ public class JournalApp
 
         var app = builder.Build();
 
+        app.UseStaticFiles();
+
         app.MapAuthEndpoints();
         app.MapGoogleHealthEndpoints();
 
