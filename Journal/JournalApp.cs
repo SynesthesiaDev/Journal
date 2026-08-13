@@ -47,10 +47,6 @@ public class JournalApp
 
         var app = builder.Build();
 
-        app.UseStaticFiles();
-        app.MapStaticAssets();
-        app.MapRazorComponents<App>()
-            .AddInteractiveServerRenderMode();
         app.MapAuthEndpoints();
         app.MapGoogleHealthEndpoints();
 
@@ -68,7 +64,7 @@ public class JournalApp
         app.UseHttpsRedirection();
         app.UseStaticFiles();
         app.UseAntiforgery();
-        app.MapRazorComponents<Components.App>().AddInteractiveServerRenderMode();
+        app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
         app.Run();
     }
