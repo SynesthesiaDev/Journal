@@ -1,4 +1,5 @@
 using Journal.Authentication;
+using Journal.Components;
 using Journal.Endpoints;
 using Journal.Settings;
 using Microsoft.AspNetCore.DataProtection;
@@ -47,7 +48,9 @@ public class JournalApp
         var app = builder.Build();
 
         app.UseStaticFiles();
-
+        app.MapStaticAssets();
+        app.MapRazorComponents<App>()
+            .AddInteractiveServerRenderMode();
         app.MapAuthEndpoints();
         app.MapGoogleHealthEndpoints();
 
