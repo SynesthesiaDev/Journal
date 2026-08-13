@@ -62,9 +62,9 @@ public class JournalApp
         }
 
         app.UseHttpsRedirection();
-        app.UseStaticFiles();
+        app.MapStaticAssets();
         app.UseAntiforgery();
-        app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
+        app.MapRazorComponents<App>().AddInteractiveServerRenderMode().WithStaticAssets();
 
         app.Run();
     }
