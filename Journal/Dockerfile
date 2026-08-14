@@ -12,6 +12,7 @@ COPY ["Journal/Journal.csproj", "Journal/"]
 RUN dotnet restore "Journal/Journal.csproj" -r linux-arm64
 COPY . .
 WORKDIR "/src/Journal"
+RUN dotnet build "Journal.csproj" -c $BUILD_CONFIGURATION -o /app/build -r linux-arm64 --no-restore
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
