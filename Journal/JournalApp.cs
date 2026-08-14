@@ -38,11 +38,13 @@ public class JournalApp
 
         var builder = WebApplication.CreateBuilder(args);
 
+        builder.Services.AddRazorComponents()
+            .AddInteractiveServerComponents();
+
         builder.Services.AddSerilog();
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddCascadingAuthenticationState();
         builder.Services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(PERSISTENT_KEYS_PATH));
-        builder.Services.AddRazorComponents().AddInteractiveServerComponents();
         builder.Services.AddDiscordAuthentication();
 
         var app = builder.Build();
@@ -62,9 +64,12 @@ public class JournalApp
         }
 
         app.UseHttpsRedirection();
-        app.MapStaticAssets();
         app.UseAntiforgery();
-        app.MapRazorComponents<App>().AddInteractiveServerRenderMode().WithStaticAssets();
+
+        app.MapStaticAssets();
+        app.MapRazorComponents<App>()
+            .AddInteractiveServerRenderMode();
+
 
         app.Run();
     }
